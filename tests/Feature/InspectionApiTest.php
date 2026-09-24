@@ -18,25 +18,23 @@ class InspectionApiTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_technician_can_create_inspection_using_service_mode_alias(): void
+    public function test_inspection_can_be_created_using_service_mode_alias(): void
     {
-        $technician = User::factory()->technician()->create();
         $owner = User::factory()->create();
         $asset = Asset::factory()->for($owner, 'user')->create();
         $personnel = TechnicalPersonnel::factory()->create();
 
-        $response = $this->actingAs($technician, 'sanctum')
-            ->postJson('/api/v1/inspections', [
-                'problem_id' => ' prb-create-1 ',
-                'asset_id' => $asset->id,
-                'remarks' => 'Battery replacement required.',
-                'status' => InspectionStatus::IndoorRepair->value,
-                'category' => InspectionCategory::Repair->value,
-                'service_mode' => InspectionSubCategory::InHouse->value,
-                'technical_personnel_id' => $personnel->id,
-                'inspection_date' => '2026-09-23',
-                'created_by' => $owner->id,
-            ]);
+        $response = $this->postJson('/api/v1/inspections', [
+            'problem_id' => ' prb-create-1 ',
+            'asset_id' => $asset->id,
+            'remarks' => 'Battery replacement required.',
+            'status' => InspectionStatus::IndoorRepair->value,
+            'category' => InspectionCategory::Repair->value,
+            'service_mode' => InspectionSubCategory::InHouse->value,
+            'technical_personnel_id' => $personnel->id,
+            'inspection_date' => '2026-09-23',
+            'created_by' => $owner->id,
+        ]);
 
         $response
             ->assertCreated()
@@ -44,11 +42,11 @@ class InspectionApiTest extends TestCase
             ->assertJsonPath('sub_category', 'in_house')
             ->assertJsonMissingPath('service_mode')
             ->assertJsonPath('user_id', $owner->id)
-            ->assertJsonPath('created_by_id', $technician->id)
-            ->assertJsonPath('created_by.id', $technician->id);
+            ->assertJsonPath('created_by_id', null)
+            ->assertJsonPath('created_by', null);
         $this->assertDatabaseHas('inspections', [
             'problem_id' => 'PRB-CREATE-1',
-            'created_by' => $technician->id,
+            'created_by' => null,
             'sub_category' => 'in_house',
         ]);
     }
@@ -88,7 +86,7 @@ class InspectionApiTest extends TestCase
                 'inspection_date' => '2026-09-20',
             ]);
 
-        $this->actingAs($viewer, 'sanctum')
+        $this->actingAs($viewer)
             ->getJson('/api/v1/inspections?search=FILTER-MATCH&status=indoor_repair&type=laptop&department_id='.$department->id.'&user_id='.$owner->id.'&category=repair&technical_personnel_id='.$personnel->id.'&date_from=2026-09-01&date_to=2026-09-30&per_page=1')
             ->assertOk()
             ->assertJsonCount(1, 'data')
@@ -103,7 +101,7 @@ class InspectionApiTest extends TestCase
         $inspection = Inspection::factory()->create();
         $inspection->load(['asset.user', 'technicalPersonnel', 'createdBy']);
 
-        $this->actingAs($viewer, 'sanctum')
+        $this->actingAs($viewer)
             ->getJson("/api/v1/inspections/{$inspection->id}")
             ->assertOk()
             ->assertJsonPath('id', $inspection->id)
@@ -118,7 +116,7 @@ class InspectionApiTest extends TestCase
         $technician = User::factory()->technician()->create();
         $inspection = Inspection::factory()->create();
 
-        $this->actingAs($technician, 'sanctum')
+        $this->actingAs($technician)
             ->patchJson("/api/v1/inspections/{$inspection->id}", [
                 'status' => InspectionStatus::Sold,
                 'remarks' => 'Repair completed.',
@@ -138,7 +136,7 @@ class InspectionApiTest extends TestCase
         $technician = User::factory()->technician()->create();
         $inspection = Inspection::factory()->create();
 
-        $this->actingAs($technician, 'sanctum')
+        $this->actingAs($technician)
             ->deleteJson("/api/v1/inspections/{$inspection->id}")
             ->assertOk()
             ->assertJsonPath('message', 'Inspection deleted successfully.');
@@ -149,7 +147,7 @@ class InspectionApiTest extends TestCase
     {
         $technician = User::factory()->technician()->create();
 
-        $this->actingAs($technician, 'sanctum')
+        $this->actingAs($technician)
             ->postJson('/api/v1/inspections', [
                 'status' => 'unknown',
                 'category' => 'refurbishment',
@@ -170,7 +168,7 @@ class InspectionApiTest extends TestCase
         $asset = Asset::factory()->create();
         $personnel = TechnicalPersonnel::factory()->create();
 
-        $this->actingAs($technician, 'sanctum')
+        $this->actingAs($technician)
             ->postJson('/api/v1/inspections', [
                 'problem_id' => 'PRB-MISSING-LOCATION',
                 'asset_id' => $asset->id,
@@ -189,7 +187,7 @@ class InspectionApiTest extends TestCase
         $asset = Asset::factory()->create();
         $personnel = TechnicalPersonnel::factory()->create();
 
-        $this->actingAs($technician, 'sanctum')
+        $this->actingAs($technician)
             ->postJson('/api/v1/inspections', [
                 'problem_id' => 'PRB-PURCHASE-LOCATION',
                 'asset_id' => $asset->id,
@@ -210,7 +208,7 @@ class InspectionApiTest extends TestCase
             'problem_id' => 'PRB-DUPLICATE',
         ]);
 
-        $this->actingAs($technician, 'sanctum')
+        $this->actingAs($technician)
             ->postJson('/api/v1/inspections', [
                 'problem_id' => 'PRB-DUPLICATE',
                 'asset_id' => $inspection->asset_id,

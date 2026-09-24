@@ -7,13 +7,12 @@ return [
     | Cross-Origin Resource Sharing (CORS) Configuration
     |--------------------------------------------------------------------------
     |
-    | The SPA sends credentialed requests, so the frontend origin must be
-    | explicitly allowed. Multiple origins may be comma-separated in the
-    | FRONTEND_URL environment variable.
+    | The frontend origin must be explicitly allowed. Multiple origins may be
+    | comma-separated in the FRONTEND_URL environment variable.
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['api/*'],
 
     'allowed_methods' => ['*'],
 
@@ -30,6 +29,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => true,
+    'supports_credentials' => false,
 
 ];

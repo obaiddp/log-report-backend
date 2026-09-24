@@ -23,7 +23,6 @@ class StoreUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
-            'password' => ['required', 'confirmed', 'string', 'min:8', 'max:255'],
             'department_id' => ['nullable', 'integer', Rule::exists(Department::class, 'id')],
             'designation' => ['nullable', 'string', 'max:255'],
             'territory' => ['nullable', 'string', 'max:255'],

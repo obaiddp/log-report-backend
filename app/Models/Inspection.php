@@ -21,7 +21,7 @@ use Illuminate\Support\Carbon;
  * @property InspectionCategory $category
  * @property InspectionSubCategory|null $sub_category
  * @property int|null $technical_personnel_id
- * @property int $created_by
+ * @property int|null $created_by
  * @property Carbon $inspection_date
  */
 #[Fillable([

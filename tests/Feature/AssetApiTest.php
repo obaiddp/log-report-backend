@@ -20,7 +20,7 @@ class AssetApiTest extends TestCase
         $admin = User::factory()->admin()->create();
         $owner = User::factory()->create();
 
-        $response = $this->actingAs($admin, 'sanctum')
+        $response = $this->actingAs($admin)
             ->postJson('/api/v1/assets', [
                 'user_id' => $owner->id,
                 'type' => AssetType::Laptop->value,
@@ -72,7 +72,7 @@ class AssetApiTest extends TestCase
             'acquired_at' => '2026-09-12',
         ]);
 
-        $this->actingAs($viewer, 'sanctum')
+        $this->actingAs($viewer)
             ->getJson('/api/v1/assets?search=SEARCH&type=laptop&department_id='.$department->id.'&user_id='.$activeOwner->id.'&status=active&date_from=2026-09-01&date_to=2026-09-30&per_page=1')
             ->assertOk()
             ->assertJsonCount(1, 'data')
@@ -87,7 +87,7 @@ class AssetApiTest extends TestCase
         $owner = User::factory()->create();
         $asset = Asset::factory()->for($owner, 'user')->create();
 
-        $this->actingAs($viewer, 'sanctum')
+        $this->actingAs($viewer)
             ->getJson("/api/v1/assets/{$asset->id}")
             ->assertOk()
             ->assertJsonPath('id', $asset->id)
@@ -101,7 +101,7 @@ class AssetApiTest extends TestCase
         $admin = User::factory()->admin()->create();
         $asset = Asset::factory()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->patchJson("/api/v1/assets/{$asset->id}", [
                 'brand' => 'Lenovo',
                 'ram_gb' => 32,
@@ -121,7 +121,7 @@ class AssetApiTest extends TestCase
         $admin = User::factory()->admin()->create();
         $asset = Asset::factory()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->deleteJson("/api/v1/assets/{$asset->id}")
             ->assertOk()
             ->assertJsonPath('message', 'Asset deleted successfully.');
@@ -139,7 +139,7 @@ class AssetApiTest extends TestCase
             ->for($admin, 'createdBy')
             ->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->deleteJson("/api/v1/assets/{$asset->id}")
             ->assertUnprocessable()
             ->assertJsonValidationErrors('asset');
@@ -150,7 +150,7 @@ class AssetApiTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->postJson('/api/v1/assets', [
                 'type' => 'smart_toaster',
             ])
@@ -169,7 +169,7 @@ class AssetApiTest extends TestCase
     {
         $viewer = User::factory()->create();
 
-        $this->actingAs($viewer, 'sanctum')
+        $this->actingAs($viewer)
             ->getJson('/api/v1/assets?sort_by=password&sort_direction=desc')
             ->assertUnprocessable()
             ->assertJsonValidationErrors('sort_by');

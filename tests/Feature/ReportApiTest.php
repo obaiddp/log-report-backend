@@ -58,7 +58,7 @@ class ReportApiTest extends TestCase
             'inspection_date' => '2026-09-21',
         ]);
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->getJson('/api/v1/reports/summary?date_from=2026-09-21&date_to=2026-09-23&department_id='.$department->id)
             ->assertOk()
             ->assertJsonPath('period.range', 'custom')
@@ -94,7 +94,7 @@ class ReportApiTest extends TestCase
         $this->travelTo(CarbonImmutable::parse('2026-09-23 12:00:00'));
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->getJson('/api/v1/reports/summary?range=daily&date=2026-09-22')
             ->assertOk()
             ->assertJsonPath('period.from', '2026-09-22')
@@ -116,7 +116,7 @@ class ReportApiTest extends TestCase
             'inspection_date' => '2026-09-23',
         ]);
 
-        $response = $this->actingAs($admin, 'sanctum')
+        $response = $this->actingAs($admin)
             ->getJson('/api/v1/reports/export?date_from=2026-09-23&date_to=2026-09-23&technical_personnel_id='.$personnel->id);
 
         $response
@@ -133,7 +133,7 @@ class ReportApiTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->getJson('/api/v1/reports/summary?range=monthly')
             ->assertUnprocessable()
             ->assertJsonValidationErrors('range');
@@ -143,7 +143,7 @@ class ReportApiTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->getJson('/api/v1/reports/summary?date_from=2026-09-01')
             ->assertUnprocessable()
             ->assertJsonValidationErrors('date_to');

@@ -128,7 +128,7 @@ class ReportController extends Controller
                         $inspection->technical_personnel_id,
                         $this->csvCell($inspection->technicalPersonnel?->name),
                         $inspection->created_by,
-                        $this->csvCell($inspection->createdBy->name),
+                        $this->csvCell($inspection->createdBy?->name),
                         $inspection->created_at?->toIso8601String(),
                     ], ',', '"', '');
                 });

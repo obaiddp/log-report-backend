@@ -9,7 +9,6 @@ use App\Models\Inspection;
 use App\Models\TechnicalPersonnel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class DirectoryApiTest extends TestCase
@@ -20,7 +19,7 @@ class DirectoryApiTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $response = $this->actingAs($admin, 'sanctum')
+        $response = $this->actingAs($admin)
             ->postJson('/api/v1/departments', [
                 'name' => 'Quality Assurance',
                 'code' => 'QA',
@@ -45,7 +44,7 @@ class DirectoryApiTest extends TestCase
         Department::factory()->create(['name' => 'Finance Operations']);
         Department::factory()->inactive()->create(['name' => 'Finance Archive']);
 
-        $this->actingAs($viewer, 'sanctum')
+        $this->actingAs($viewer)
             ->getJson('/api/v1/departments?search=Finance&status=active&per_page=1')
             ->assertOk()
             ->assertJsonCount(1, 'data')
@@ -54,17 +53,15 @@ class DirectoryApiTest extends TestCase
             ->assertJsonStructure(['data', 'links', 'meta']);
     }
 
-    public function test_admin_can_create_user_without_exposing_password(): void
+    public function test_public_user_can_create_directory_user(): void
     {
         $admin = User::factory()->admin()->create();
         $department = Department::factory()->create();
 
-        $response = $this->actingAs($admin, 'sanctum')
+        $response = $this->actingAs($admin)
             ->postJson('/api/v1/users', [
                 'name' => 'Field Technician',
                 'email' => 'FIELD.TECHNICIAN@EXAMPLE.TEST',
-                'password' => 'secure-password',
-                'password_confirmation' => 'secure-password',
                 'department_id' => $department->id,
                 'designation' => 'Field Technician',
                 'territory' => 'Lahore',
@@ -78,7 +75,7 @@ class DirectoryApiTest extends TestCase
             ->assertJsonPath('role', 'technician')
             ->assertJsonMissingPath('password');
         $user = User::query()->where('email', 'field.technician@example.test')->firstOrFail();
-        $this->assertTrue(Hash::check('secure-password', $user->password));
+        $this->assertModelExists($user);
     }
 
     public function test_users_can_be_searched_filtered_and_paginated(): void
@@ -96,7 +93,7 @@ class DirectoryApiTest extends TestCase
             'name' => 'Matching Inactive',
         ]);
 
-        $this->actingAs($viewer, 'sanctum')
+        $this->actingAs($viewer)
             ->getJson('/api/v1/users?search=Matching&department_id='.$department->id.'&status=active&role=technician&per_page=10')
             ->assertOk()
             ->assertJsonCount(1, 'data')
@@ -110,7 +107,7 @@ class DirectoryApiTest extends TestCase
         $admin = User::factory()->admin()->create();
         $department = Department::factory()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->postJson('/api/v1/technical-personnel', [
                 'department_id' => $department->id,
                 'name' => 'Musa Technical',
@@ -142,7 +139,7 @@ class DirectoryApiTest extends TestCase
             'name' => 'Network Specialist Retired',
         ]);
 
-        $this->actingAs($viewer, 'sanctum')
+        $this->actingAs($viewer)
             ->getJson('/api/v1/technical-personnel?search=Network&department_id='.$department->id.'&status=active&per_page=10')
             ->assertOk()
             ->assertJsonCount(1, 'data')
@@ -150,22 +147,20 @@ class DirectoryApiTest extends TestCase
             ->assertJsonPath('meta.total', 1);
     }
 
-    public function test_admin_can_update_user_and_password_is_rehashed(): void
+    public function test_public_user_can_update_directory_user(): void
     {
         $admin = User::factory()->admin()->create();
         $user = User::factory()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->patchJson("/api/v1/users/{$user->id}", [
                 'designation' => 'Senior Analyst',
-                'password' => 'new-secure-password',
-                'password_confirmation' => 'new-secure-password',
             ])
             ->assertOk()
             ->assertJsonPath('designation', 'Senior Analyst')
             ->assertJsonMissingPath('password');
         $user->refresh();
-        $this->assertTrue(Hash::check('new-secure-password', $user->password));
+        $this->assertSame('Senior Analyst', $user->designation);
     }
 
     public function test_admin_can_delete_unlinked_user(): void
@@ -173,7 +168,7 @@ class DirectoryApiTest extends TestCase
         $admin = User::factory()->admin()->create();
         $user = User::factory()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->deleteJson("/api/v1/users/{$user->id}")
             ->assertOk()
             ->assertJsonPath('message', 'User deleted successfully.');
@@ -185,7 +180,7 @@ class DirectoryApiTest extends TestCase
         $admin = User::factory()->admin()->create();
         $department = Department::factory()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->patchJson("/api/v1/departments/{$department->id}", [
                 'name' => 'Technology Services',
                 'status' => 'inactive',
@@ -205,7 +200,7 @@ class DirectoryApiTest extends TestCase
         $admin = User::factory()->admin()->create();
         $department = Department::factory()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->deleteJson("/api/v1/departments/{$department->id}")
             ->assertOk()
             ->assertJsonPath('message', 'Department deleted successfully.');
@@ -218,7 +213,7 @@ class DirectoryApiTest extends TestCase
         $department = Department::factory()->create();
         TechnicalPersonnel::factory()->for($department, 'department')->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->deleteJson("/api/v1/departments/{$department->id}")
             ->assertUnprocessable()
             ->assertJsonValidationErrors('department');
@@ -230,7 +225,7 @@ class DirectoryApiTest extends TestCase
         $admin = User::factory()->admin()->create();
         $personnel = TechnicalPersonnel::factory()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->patchJson("/api/v1/technical-personnel/{$personnel->id}", [
                 'specialization' => 'Enterprise Networking',
                 'status' => 'inactive',
@@ -250,7 +245,7 @@ class DirectoryApiTest extends TestCase
         $admin = User::factory()->admin()->create();
         $personnel = TechnicalPersonnel::factory()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->deleteJson("/api/v1/technical-personnel/{$personnel->id}")
             ->assertOk()
             ->assertJsonPath('message', 'Technical personnel deleted successfully.');
@@ -263,7 +258,7 @@ class DirectoryApiTest extends TestCase
         $personnel = TechnicalPersonnel::factory()->create();
         Inspection::factory()->for($personnel, 'technicalPersonnel')->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->deleteJson("/api/v1/technical-personnel/{$personnel->id}")
             ->assertUnprocessable()
             ->assertJsonValidationErrors('technical_personnel');
@@ -276,38 +271,21 @@ class DirectoryApiTest extends TestCase
         $user = User::factory()->create();
         Asset::factory()->for($user, 'user')->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->deleteJson("/api/v1/users/{$user->id}")
             ->assertUnprocessable()
             ->assertJsonValidationErrors('user');
         $this->assertModelExists($user);
     }
 
-    public function test_user_creation_rejects_password_confirmation_mismatch(): void
-    {
-        $admin = User::factory()->admin()->create();
-
-        $this->actingAs($admin, 'sanctum')
-            ->postJson('/api/v1/users', [
-                'name' => 'Mismatched Password',
-                'email' => 'mismatched@example.test',
-                'password' => 'secure-password',
-                'password_confirmation' => 'different-password',
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('password');
-    }
-
     public function test_user_creation_rejects_invalid_role(): void
     {
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($admin)
             ->postJson('/api/v1/users', [
                 'name' => 'Invalid Role',
                 'email' => 'invalid-role@example.test',
-                'password' => 'secure-password',
-                'password_confirmation' => 'secure-password',
                 'role' => 'super-admin',
             ])
             ->assertUnprocessable()

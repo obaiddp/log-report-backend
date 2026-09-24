@@ -25,7 +25,6 @@ class UpdateUserRequest extends FormRequest
         return [
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user)],
-            'password' => ['sometimes', 'confirmed', 'string', 'min:8', 'max:255'],
             'department_id' => ['sometimes', 'nullable', 'integer', Rule::exists(Department::class, 'id')],
             'designation' => ['sometimes', 'nullable', 'string', 'max:255'],
             'territory' => ['sometimes', 'nullable', 'string', 'max:255'],

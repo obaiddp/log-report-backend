@@ -70,10 +70,7 @@ class InspectionController extends Controller
 
     public function store(StoreInspectionRequest $request): JsonResponse
     {
-        $attributes = $request->validated();
-        $attributes['created_by'] = $request->user()->getKey();
-
-        $inspection = Inspection::query()->create($attributes);
+        $inspection = Inspection::query()->create($request->validated());
         $inspection->load(['asset.user', 'technicalPersonnel', 'createdBy']);
 
         return InspectionResource::make($inspection)

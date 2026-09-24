@@ -12,9 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property int $id
@@ -47,7 +45,7 @@ class User extends Authenticatable
     ];
 
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasFactory, Notifiable;
 
     /**
      * @return array<string, string>
@@ -107,12 +105,6 @@ class User extends Authenticatable
     protected static function booted(): void
     {
         static::deleting(function (User $user): void {
-            if (Auth::check() && Auth::id() === $user->getKey()) {
-                throw ValidationException::withMessages([
-                    'user' => ['You cannot delete your own account.'],
-                ]);
-            }
-
             if ($user->assets()->exists() || $user->createdInspections()->exists()) {
                 throw ValidationException::withMessages([
                     'user' => ['This user is linked to assets or inspection history and cannot be deleted.'],

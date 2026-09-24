@@ -20,7 +20,7 @@ return new class extends Migration
             $table->enum('category', ['new_purchase', 'repair']);
             $table->enum('sub_category', ['in_house', 'out_house'])->nullable();
             $table->foreignId('technical_personnel_id')->nullable()->constrained('technical_personnel')->restrictOnDelete();
-            $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->date('inspection_date');
             $table->timestamps();
 
