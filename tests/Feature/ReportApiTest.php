@@ -117,7 +117,7 @@ class ReportApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)
-            ->getJson('/api/v1/reports/export?date_from=2026-09-23&date_to=2026-09-23&technical_personnel_id='.$personnel->id);
+            ->getJson('/api/v1/reports/legacy/export?date_from=2026-09-23&date_to=2026-09-23&technical_personnel_id='.$personnel->id);
 
         $response
             ->assertOk()

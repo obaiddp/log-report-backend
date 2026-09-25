@@ -16,7 +16,12 @@ class UpdateInspectionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+        $inspection = $this->route('inspection');
+
+        return $user !== null
+            && $inspection instanceof Inspection
+            && $user->can('update', $inspection);
     }
 
     /**

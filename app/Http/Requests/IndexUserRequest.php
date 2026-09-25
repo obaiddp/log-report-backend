@@ -19,7 +19,7 @@ class IndexUserRequest extends IndexRequest
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
             'department_id' => ['sometimes', 'nullable', 'integer', Rule::exists(Department::class, 'id')],
             'status' => ['sometimes', 'nullable', Rule::enum(RecordStatus::class)],
-            'role' => ['sometimes', 'nullable', Rule::enum(UserRole::class)],
+            'role' => ['sometimes', 'nullable', Rule::in(UserRole::canonicalValues())],
         ];
     }
 
@@ -29,5 +29,14 @@ class IndexUserRequest extends IndexRequest
     protected function sortFields(): array
     {
         return ['name', 'email', 'designation', 'territory', 'status', 'role', 'created_at', 'updated_at'];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('role')) {
+            $this->merge([
+                'role' => UserRole::normalize($this->input('role')),
+            ]);
+        }
     }
 }

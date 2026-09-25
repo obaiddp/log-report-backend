@@ -24,7 +24,7 @@ class InspectionApiTest extends TestCase
         $asset = Asset::factory()->for($owner, 'user')->create();
         $personnel = TechnicalPersonnel::factory()->create();
 
-        $response = $this->postJson('/api/v1/inspections', [
+        $response = $this->actingAs($owner)->postJson('/api/v1/inspections', [
             'problem_id' => ' prb-create-1 ',
             'asset_id' => $asset->id,
             'remarks' => 'Battery replacement required.',
@@ -33,7 +33,6 @@ class InspectionApiTest extends TestCase
             'service_mode' => InspectionSubCategory::InHouse->value,
             'technical_personnel_id' => $personnel->id,
             'inspection_date' => '2026-09-23',
-            'created_by' => $owner->id,
         ]);
 
         $response
@@ -42,11 +41,11 @@ class InspectionApiTest extends TestCase
             ->assertJsonPath('sub_category', 'in_house')
             ->assertJsonMissingPath('service_mode')
             ->assertJsonPath('user_id', $owner->id)
-            ->assertJsonPath('created_by_id', null)
-            ->assertJsonPath('created_by', null);
+            ->assertJsonPath('created_by_id', $owner->id)
+            ->assertJsonPath('created_by.id', $owner->id);
         $this->assertDatabaseHas('inspections', [
             'problem_id' => 'PRB-CREATE-1',
-            'created_by' => null,
+            'created_by' => $owner->id,
             'sub_category' => 'in_house',
         ]);
     }
@@ -131,12 +130,12 @@ class InspectionApiTest extends TestCase
         ]);
     }
 
-    public function test_technician_can_delete_inspection(): void
+    public function test_admin_can_delete_inspection(): void
     {
-        $technician = User::factory()->technician()->create();
+        $admin = User::factory()->admin()->create();
         $inspection = Inspection::factory()->create();
 
-        $this->actingAs($technician)
+        $this->actingAs($admin)
             ->deleteJson("/api/v1/inspections/{$inspection->id}")
             ->assertOk()
             ->assertJsonPath('message', 'Inspection deleted successfully.');

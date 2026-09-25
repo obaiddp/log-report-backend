@@ -41,7 +41,7 @@ class User extends Authenticatable
     /** @var array<string, mixed> */
     protected $attributes = [
         'status' => 'active',
-        'role' => 'user',
+        'role' => 'technical_resource',
     ];
 
     /** @use HasFactory<UserFactory> */
@@ -84,30 +84,99 @@ class User extends Authenticatable
         return $this->hasMany(Inspection::class, 'created_by');
     }
 
-    public function isAdmin(): bool
+    /**
+     * @return HasMany<SupportLog, $this>
+     */
+    public function createdSupportLogs(): HasMany
     {
-        return $this->role === UserRole::Admin;
+        return $this->hasMany(SupportLog::class, 'created_by');
     }
 
+    /**
+     * @return HasMany<SupportLog, $this>
+     */
+    public function assignedSupportLogs(): HasMany
+    {
+        return $this->hasMany(SupportLog::class, 'assigned_to');
+    }
+
+    /**
+     * @return HasMany<SupportLogAssignment, $this>
+     */
+    public function supportLogAssignments(): HasMany
+    {
+        return $this->hasMany(SupportLogAssignment::class, 'assigned_to');
+    }
+
+    /**
+     * @return HasMany<SupportLogAssignment, $this>
+     */
+    public function supportLogAssignmentsMade(): HasMany
+    {
+        return $this->hasMany(SupportLogAssignment::class, 'assigned_by');
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->canonicalRole() === UserRole::Admin->value;
+    }
+
+    public function isTechnicalResource(): bool
+    {
+        return $this->canonicalRole() === UserRole::TechnicalResource->value;
+    }
+
+    /**
+     * Backward-compatible alias for the legacy technician terminology.
+     */
     public function isTechnician(): bool
     {
-        return $this->role === UserRole::Technician;
+        return $this->isTechnicalResource();
+    }
+
+    public function canonicalRole(): string
+    {
+        $role = $this->getAttribute('role');
+
+        return $role instanceof UserRole
+            ? $role->canonicalValue()
+            : UserRole::normalize($role);
+    }
+
+    public function isActive(): bool
+    {
+        $status = $this->getAttribute('status');
+
+        return ($status instanceof RecordStatus ? $status : RecordStatus::tryFrom((string) $status)) === RecordStatus::Active;
+    }
+
+    public function isVerified(): bool
+    {
+        return $this->email_verified_at !== null;
     }
 
     public function canManageInspections(): bool
     {
-        return $this->isAdmin() || $this->isTechnician();
+        return $this->isAdmin() || $this->isTechnicalResource();
     }
 
     /**
-     * Preserve user, asset, and inspection history during destructive operations.
+     * Preserve user, asset, inspection, and support-log history during
+     * destructive operations.
      */
     protected static function booted(): void
     {
         static::deleting(function (User $user): void {
-            if ($user->assets()->exists() || $user->createdInspections()->exists()) {
+            if (
+                $user->assets()->exists()
+                || $user->createdInspections()->exists()
+                || $user->createdSupportLogs()->withTrashed()->exists()
+                || $user->assignedSupportLogs()->withTrashed()->exists()
+                || $user->supportLogAssignments()->exists()
+                || $user->supportLogAssignmentsMade()->exists()
+            ) {
                 throw ValidationException::withMessages([
-                    'user' => ['This user is linked to assets or inspection history and cannot be deleted.'],
+                    'user' => ['This user is linked to historical records and cannot be deleted.'],
                 ]);
             }
         });

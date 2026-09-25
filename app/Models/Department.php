@@ -55,14 +55,26 @@ class Department extends Model
     }
 
     /**
+     * @return HasMany<SupportLog, $this>
+     */
+    public function supportLogs(): HasMany
+    {
+        return $this->hasMany(SupportLog::class);
+    }
+
+    /**
      * Ensure departments are not removed while related records exist.
      */
     protected static function booted(): void
     {
         static::deleting(function (Department $department): void {
-            if ($department->users()->exists() || $department->technicalPersonnel()->exists()) {
+            if (
+                $department->users()->exists()
+                || $department->technicalPersonnel()->exists()
+                || $department->supportLogs()->withTrashed()->exists()
+            ) {
                 throw ValidationException::withMessages([
-                    'department' => ['This department still has users or technical personnel.'],
+                    'department' => ['This department still has users, personnel, or support-log history.'],
                 ]);
             }
         });

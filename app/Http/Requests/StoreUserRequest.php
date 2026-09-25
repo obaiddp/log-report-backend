@@ -12,7 +12,7 @@ class StoreUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->isAdmin() === true;
     }
 
     /**
@@ -23,18 +23,29 @@ class StoreUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
+            'password' => ['required', 'string', 'min:12', 'confirmed'],
             'department_id' => ['nullable', 'integer', Rule::exists(Department::class, 'id')],
             'designation' => ['nullable', 'string', 'max:255'],
             'territory' => ['nullable', 'string', 'max:255'],
             'status' => ['sometimes', Rule::enum(RecordStatus::class)],
-            'role' => ['sometimes', Rule::enum(UserRole::class)],
+            'role' => ['sometimes', Rule::in(UserRole::canonicalValues())],
         ];
     }
 
     protected function prepareForValidation(): void
     {
+        $attributes = [];
+
         if ($this->has('email')) {
-            $this->merge(['email' => mb_strtolower(trim((string) $this->input('email')))]);
+            $attributes['email'] = mb_strtolower(trim((string) $this->input('email')));
+        }
+
+        if ($this->has('role')) {
+            $attributes['role'] = UserRole::normalize($this->input('role'));
+        }
+
+        if ($attributes !== []) {
+            $this->merge($attributes);
         }
     }
 }

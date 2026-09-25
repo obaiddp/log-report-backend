@@ -6,6 +6,7 @@ use App\Enums\InspectionCategory;
 use App\Enums\InspectionStatus;
 use App\Enums\InspectionSubCategory;
 use App\Models\Asset;
+use App\Models\Inspection;
 use App\Models\TechnicalPersonnel;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -15,7 +16,7 @@ class StoreInspectionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('create', Inspection::class) === true;
     }
 
     /**
@@ -24,6 +25,7 @@ class StoreInspectionRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'created_by' => ['prohibited'],
             'problem_id' => ['required', 'string', 'max:100', Rule::unique('inspections', 'problem_id')],
             'asset_id' => ['required', 'integer', Rule::exists(Asset::class, 'id')],
             'remarks' => ['nullable', 'string', 'max:10000'],

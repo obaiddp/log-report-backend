@@ -26,12 +26,12 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
+            'password' => static::$password ??= Hash::make(Str::random(40)),
             'department_id' => Department::factory(),
             'designation' => fake()->jobTitle(),
             'territory' => fake()->city(),
             'status' => RecordStatus::Active,
-            'role' => UserRole::User,
+            'role' => UserRole::TechnicalResource,
             'remember_token' => Str::random(10),
         ];
     }
@@ -43,7 +43,19 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function technicalResource(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role' => UserRole::TechnicalResource,
+        ]);
+    }
+
     public function technician(): static
+    {
+        return $this->technicalResource();
+    }
+
+    public function legacyTechnician(): static
     {
         return $this->state(fn (array $attributes): array => [
             'role' => UserRole::Technician,

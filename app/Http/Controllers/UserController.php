@@ -10,6 +10,8 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
@@ -47,7 +49,12 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request): JsonResponse
     {
-        $user = User::query()->create($request->validated());
+        $attributes = $request->validated();
+        unset($attributes['password_confirmation']);
+        $attributes['password'] = Hash::make($attributes['password']);
+
+        $user = User::query()->create($attributes);
+        $user->forceFill(['email_verified_at' => now()])->save();
         $user->load('department')->loadCount('assets');
 
         return UserResource::make($user)
@@ -57,7 +64,14 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): UserResource
     {
-        $user->update($request->validated());
+        $attributes = $request->validated();
+        unset($attributes['password_confirmation']);
+
+        if (array_key_exists('password', $attributes)) {
+            $attributes['password'] = Hash::make($attributes['password']);
+        }
+
+        $user->update($attributes);
         $user->load('department')->loadCount('assets');
 
         return new UserResource($user);
@@ -65,6 +79,7 @@ class UserController extends Controller
 
     public function destroy(User $user): JsonResponse
     {
+        Gate::forUser(request()->user())->authorize('delete', $user);
         $user->delete();
 
         return response()->json(['message' => 'User deleted successfully.']);

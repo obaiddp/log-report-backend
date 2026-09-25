@@ -1,167 +1,180 @@
-# Log Report Backend
+# IT Support Log System Backend
 
-Laravel 13 JSON API for the Asset Inspection Form application. It uses SQLite, typed PHP enums, API resources, Form Requests, factories, and deterministic seed data.
+Laravel 13 JSON API for the IT Support Log System. The application uses PostgreSQL-compatible migrations, Sanctum SPA cookie/session authentication, API resources, Form Requests, policies, factories, and idempotent seed data. SQLite is supported for the automated test suite.
 
 ## Requirements
 
 - PHP 8.3 or newer (the project is tested on PHP 8.5)
 - Composer
+- PostgreSQL for production-like deployments
 
-## Local setup
+## Setup
 
-```bash
-composer install
-cp .env.example .env
-php artisan key:generate
-touch database/database.sqlite
-php artisan migrate:fresh --seed
-php artisan serve
-```
+1. Copy `.env.example` to `.env` and set `APP_KEY`, the PostgreSQL connection values, `FRONTEND_URL`, and `SANCTUM_STATEFUL_DOMAINS`.
+2. Set `INITIAL_ADMIN_PASSWORD` to a private value (12+ characters is recommended). Set `INITIAL_RESOURCE_PASSWORD` as well before creating the initial technical-resource accounts. The seeder never uses a known default password and stops with a setup message if a required initial password is missing.
+3. Run additive migrations with `php artisan migrate`. Do not use `migrate:fresh` against a database containing real data.
+4. Run `php artisan db:seed` when the initial configuration and accounts are required. Seeding is idempotent and does not remove legacy assets or inspections.
+5. Start the API with `php artisan serve`.
 
 The API base URL is `http://localhost:8000/api/v1`.
 
-The seeder creates four departments, the technical personnel named Afaq, Waseem, Obaid, Zulfiqar, and Mudassar, directory users, assets, and inspections. Seeding is idempotent.
+## Authentication and browser security
 
-## Public API
+The versioned API uses Laravel Sanctum first-party SPA authentication:
 
-Authentication and login screens are intentionally not part of this application. All versioned API endpoints are public for the current internal-network deployment model. The `role`, `status`, and `territory` fields on users remain organizational metadata and can be used by a future authorization layer.
+- `GET /sanctum/csrf-cookie` starts the web session and sets the CSRF cookie.
+- The frontend sends the session cookie and `X-XSRF-TOKEN` header on subsequent requests.
+- `POST /api/v1/auth/login` accepts `{email, password, remember?}` and is protected by a five-attempt-per-minute email/IP throttle.
+- `POST /api/v1/auth/logout` logs out the current session.
+- `GET /api/v1/auth/me` returns the current user.
+- CORS allows the comma-separated `FRONTEND_URL` origins with credentials for both API routes and `/sanctum/csrf-cookie`. `SANCTUM_STATEFUL_DOMAINS` must contain the frontend host/port without a scheme.
 
-Set `FRONTEND_URL` in `.env` to a comma-separated list of allowed frontend origins. Local defaults include `http://localhost:5173` and `http://127.0.0.1:5173`.
-
-> This open API is appropriate only for a trusted local/internal network. Add authentication and authorization before exposing write endpoints publicly.
+Login requires an **active and email-verified** account. Inactive and unverified accounts receive `403`; invalid credentials receive the normal `422` validation response. The additive role migration marks pre-existing active legacy users as verified because the earlier application had no verification workflow; newly created unverified users remain blocked. There is no public registration endpoint. Passwords are hashed and are never returned.
 
 ## Response contract
 
-- Singular resources are returned as JSON objects.
+- Singular resources are JSON objects.
 - Paginated lists use Laravel's standard `{data, links, meta}` envelope.
-- Dates are ISO 8601 strings; date-only business fields use `YYYY-MM-DD`.
+- User objects consistently expose `id`, `name`, `email`, `role`, `department_id`, `department`, and `status` (plus non-sensitive directory metadata where appropriate).
+- Support-log resources expose the fields required by the frontend: `id`, `ticket_number`, `issue_date`, `initiated_by`, `department_id`, `department`, `issue_types`, `item_type_id`, `item_type`, `description`, `status`, `priority`, `assigned_to`, `assigned_resource`, `created_by`, `creator`, `resolution_notes`, `internal_remarks`, `resolved_at`, `closed_at`, `created_at`, `updated_at`, and `assignments`.
+- `issue_types` is an array of `{id, name, status}` config objects; `item_type`, `department`, `assigned_resource`, and `creator` are nested objects. `assignments` is an ordered history array containing assignment IDs, resource/assigner IDs and nested users, `assigned_at`, and nullable `unassigned_at`.
+- Date-only business fields use `YYYY-MM-DD`; timestamps use ISO 8601.
 - Validation failures return `422` with `message` and field-level `errors`.
-- User passwords and other sensitive fields are never exposed.
+- CSV cells beginning with spreadsheet formula characters are prefixed with an apostrophe.
+
+### Canonical roles
+
+New API writes and responses use only:
+
+- `admin`
+- `technical_resource`
+
+Legacy `technician` and `user` values are read and treated as `technical_resource`; the additive role migration converts them where the database permits. Technical resources cannot change roles or promote users.
+
+## Authorization
+
+- **Admin**: manage all support logs, assign/reassign resources, archive logs, export reports, manage users/departments/legacy personnel, and manage issue/item configuration.
+- **Technical Resource**: create support logs, view the shared support-log queue, and update status, resolution notes, and internal remarks only on logs assigned to them. Technical resources can self-assign a log they create when no assignee is supplied. Internal remarks are returned only to an admin or the assigned technical resource.
+- **Support-log deletion** is admin-only and is implemented as a soft archive. Assignment history is never discarded during reassignment.
+- Legacy asset/inspection routes remain available for historical compatibility, but are authenticated, deprecated, and must not be used as the new support-log workflow. Their tables and data are preserved.
+
+## Support-log workflow
+
+Statuses are code-defined in v1 and are intentionally not configurable:
+
+`open`, `in_progress`, `indoor_repair`, `outdoor_repair`, `resolved`, `closed`, `cancelled`
+
+Priorities are: `low`, `medium`, `high`, `critical`.
+
+The server generates a human-readable, unique ticket number in the form `ITL-YYYYMMDD-XXXXXXXXXX`. Creation timestamps are server-owned. `issue_date` cannot be in the future. A resolution note is required when entering `resolved` or `closed`. `resolved_at` is set on resolution and `closed_at` on closure; reopening an active workflow clears terminal timestamps.
+
+The initial transition policy is:
+
+- `open` may move to `in_progress`, `indoor_repair`, `outdoor_repair`, `resolved`, or `cancelled`.
+- `in_progress` may move to either repair state, `resolved`, or `cancelled`.
+- Repair states may move to another repair state, `in_progress`, `resolved`, or `cancelled`.
+- `resolved` may be closed, reopened to an active repair state, or cancelled.
+- `closed` and `cancelled` are terminal; an administrator must archive/recreate a log rather than silently rewriting terminal history.
+
+Status values are kept in `App\Enums\SupportLogStatus`; changing the code-defined workflow is a code change, not a configuration CRUD operation.
 
 ## Endpoints
 
-All routes below are relative to `/api/v1`.
+All routes below are relative to `/api/v1` and, except for health and login, require Sanctum authentication.
 
-### Health
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `GET` | `/health` | Service readiness |
-
-### Users
+### Health and authentication
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/users` | Search, filter, and paginate users |
-| `POST` | `/users` | Create a directory user |
-| `GET` | `/users/{user}` | View a user |
-| `PUT/PATCH` | `/users/{user}` | Update a user |
-| `DELETE` | `/users/{user}` | Delete an unlinked user |
+| `GET` | `/health` | Public service readiness |
+| `GET` | `/sanctum/csrf-cookie` | Sanctum SPA CSRF/session bootstrap (outside the `/api/v1` prefix) |
+| `POST` | `/auth/login` | Start a session |
+| `POST` | `/auth/logout` | End the session |
+| `GET` | `/auth/me` | Current user |
 
-### Departments
+### Support logs
 
-| Method | Endpoint | Description |
+| Method | Endpoint | Authorization |
 | --- | --- | --- |
-| `GET` | `/departments` | Search, filter, and paginate departments |
-| `POST` | `/departments` | Create a department |
-| `GET` | `/departments/{department}` | View a department |
-| `PUT/PATCH` | `/departments/{department}` | Update a department |
-| `DELETE` | `/departments/{department}` | Delete an unlinked department |
+| `GET` | `/support-log-options` | Authenticated safe lookup for form options; admins also receive inactive historical options |
+| `GET` | `/support-logs` | Authenticated shared queue |
+| `POST` | `/support-logs` | Admin or technical resource |
+| `GET` | `/support-logs/{id}` | Authenticated shared queue |
+| `PUT/PATCH` | `/support-logs/{id}` | Admin, or assigned technical resource for permitted fields |
+| `DELETE` | `/support-logs/{id}` | Admin; soft archive |
 
-### Technical personnel
+List parameters: `search`, `date_from`, `date_to`, `department_id`, `issue_type_id`, `item_type_id`, `status`, `priority`, `assigned_to`, `initiated_by`, `ticket_number`, `page`, `per_page` (maximum 100), `sort_by`, and `sort_direction`. Sort fields are allow-listed.
 
-| Method | Endpoint | Description |
+### Configuration and directory
+
+| Method | Endpoint | Authorization |
 | --- | --- | --- |
-| `GET` | `/technical-personnel` | Search, filter, and paginate personnel |
-| `POST` | `/technical-personnel` | Create personnel |
-| `GET` | `/technical-personnel/{technical_personnel}` | View personnel |
-| `PUT/PATCH` | `/technical-personnel/{technical_personnel}` | Update personnel |
-| `DELETE` | `/technical-personnel/{technical_personnel}` | Delete unassigned personnel |
+| `GET` | `/issue-types` | Authenticated lookup |
+| `POST` | `/issue-types` | Admin |
+| `GET/PUT/PATCH/DELETE` | `/issue-types/{id}` | Authenticated read; admin mutation |
+| `GET` | `/item-types` | Authenticated lookup |
+| `POST` | `/item-types` | Admin |
+| `GET/PUT/PATCH/DELETE` | `/item-types/{id}` | Authenticated read; admin mutation |
+| `GET` | `/departments` | Authenticated lookup |
+| `POST` | `/departments` | Admin |
+| `GET/PUT/PATCH/DELETE` | `/departments/{id}` | Authenticated read; admin mutation |
+| `GET` | `/users` | Authenticated directory lookup |
+| `POST` | `/users` | Admin |
+| `GET/PUT/PATCH/DELETE` | `/users/{id}` | Authenticated safe read; admin mutation; passwords are write-only |
+| `GET` | `/technical-personnel` | Authenticated lookup (deprecated legacy directory) |
+| `POST` | `/technical-personnel` | Admin (deprecated legacy directory) |
+| `GET/PUT/PATCH/DELETE` | `/technical-personnel/{id}` | Authenticated safe read; admin mutation (deprecated legacy directory) |
 
-### Assets
+Issue types and item types have `active`/`inactive` status fields. Config records referenced by support-log history cannot be hard-deleted.
 
-| Method | Endpoint | Description |
+### Dashboard and reports
+
+These endpoints are authenticated and admin-oriented. They accept `date_from`, `date_to`, and the common support-log filters where meaningful. Date filters use `issue_date`; dashboard `created_*` metrics use `created_at`.
+
+| Method | Endpoint | Response shape |
 | --- | --- | --- |
-| `GET` | `/assets` | Search, filter, and paginate assets |
-| `POST` | `/assets` | Create an asset |
-| `GET` | `/assets/{asset}` | View an asset and its latest inspection |
-| `PUT/PATCH` | `/assets/{asset}` | Update an asset |
-| `DELETE` | `/assets/{asset}` | Delete an asset without inspection history |
+| `GET` | `/dashboard/summary` | `{filters, period, metrics, overdue_rule, resolution_time_basis, generated_at}` |
+| `GET` | `/reports/by-department` | `{data, filters, meta}`; each row has department and status counts |
+| `GET` | `/reports/by-resource` | `{data, filters, meta}`; includes an unassigned row |
+| `GET` | `/reports/by-issue-type` | `{data, filters, meta}`; counts the relational pivot without duplicate log rows |
+| `GET` | `/reports/by-item` | `{data, filters, meta}`; item-category totals and status counts |
+| `GET` | `/reports/by-status` | `{data, filters, meta}`; includes every status, including zero counts |
+| `GET` | `/reports/export` | Streamed support-log CSV |
 
-For assets, `status` filters the mapped user's status. `department_id` filters the mapped user's department. `date_from` and `date_to` filter `acquired_at`.
+Dashboard metrics include `total`, `open`, `in_progress`, `indoor_repair`, `outdoor_repair`, `resolved`, `closed`, `cancelled`, `unresolved`, `unassigned`, `critical`, `created_today`, `created_this_week`, `created_this_month`, `overdue`, and `average_resolution_time_hours`. Overdue means an active log older than seven days from `created_at`. Average resolution time is calculated only when both `created_at` and `resolved_at` are present. The summary also includes status, priority, department, resource, issue-type, and item breakdowns for the dashboard charts. Reports aggregate in the database and do not serialize all matching rows into JSON.
 
-### Inspections
+## Migrations and legacy data
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `GET` | `/inspections` | Search, filter, and paginate inspections |
-| `POST` | `/inspections` | Create an inspection |
-| `GET` | `/inspections/{inspection}` | View an inspection |
-| `PUT/PATCH` | `/inspections/{inspection}` | Update an inspection |
-| `DELETE` | `/inspections/{inspection}` | Delete an inspection |
+The new tables are additive:
 
-Repair inspections require `sub_category=in_house|out_house`; new-purchase inspections must leave it null. `service_mode` is accepted as a compatibility input alias for `sub_category`.
+- `issue_types`
+- `item_types`
+- `support_logs`
+- `support_log_issue_types`
+- `support_log_assignments`
 
-### Reports
+The role normalization and Sanctum personal-access-token migrations are also additive. Existing `assets`, `inspections`, `technical_personnel`, and their rows are not dropped. Foreign keys use restrictive deletion for historical actors/configuration and soft deletion is used for support logs.
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `GET` | `/reports/summary` | JSON report metrics and chart arrays |
-| `GET` | `/reports/export` | Stream filtered inspection rows as CSV |
+## Seed data
 
-Report periods can be selected in one of these ways:
+`DatabaseSeeder` idempotently creates the baseline departments, initial issue/item options, four technical-resource users (`Afaq`, `Haris`, `Obaid`, and `Zulfiqar`), and `Mudassir` as the IT Department Head administrator who may also be assigned work. It never creates a known default password.
 
-- `range=daily&date=YYYY-MM-DD`
-- `range=weekly` for the current Monday-Sunday week
-- `date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` for a custom daily period
-- No period parameters defaults to today
+## Current limitations and decisions
 
-Named periods cannot be combined with `date_from`/`date_to`. Reports also accept `search`, `type`, `department_id`, `user_id`, `status`, `category`, and `technical_personnel_id`.
-
-The summary response has these top-level arrays/objects:
-
-- `period`
-- `metrics`
-- `status_breakdown`
-- `asset_distribution`
-- `ram_usage_by_department`
-- `purchase_vs_repair`
-- `inspection_trend`
-- `technician_workload`
-
-Asset and user metrics describe the current filtered register. Inspection, purchase/repair, trend, and workload metrics use the selected period.
-
-## List filters, sorting, and pagination
-
-All list endpoints accept `page`, `per_page` (maximum 100), `sort_by`, and `sort_direction` (`asc` or `desc`). Sort fields are allow-listed per endpoint and always have a stable ID tie-breaker.
-
-| Endpoint | Additional parameters |
-| --- | --- |
-| `/users` | `search`, `department_id`, `status`, `role` |
-| `/departments` | `search`, `status` |
-| `/technical-personnel` | `search`, `department_id`, `status` |
-| `/assets` | `search`, `type`, `department_id`, `user_id`, `status`, `date_from`, `date_to` |
-| `/inspections` | `search`, `status`, `type`, `department_id`, `user_id`, `category`, `technical_personnel_id`, `date_from`, `date_to` |
-
-## Domain values
-
-- User roles: `admin`, `technician`, `user`
-- Status values: `active`, `inactive`
-- Asset types: `laptop`, `printer`, `projector`, `computer`, `it_support_equipment`
-- Inspection statuses: `sold`, `in_progress`, `indoor_repair`, `outdoor_repair`
-- Inspection categories: `new_purchase`, `repair`
-- Inspection sub-categories: `in_house`, `out_house`
-
-## Safe deletion
-
-Departments, users, technical personnel, and assets are not hard-deleted while dependent records exist. The API returns a field-level `422` validation error in those cases. Inspection deletion removes the inspection record.
+- Attachments/file uploads are not included in v1 because no secure storage and malware-validation workflow has been defined.
+- Statuses and priorities are code-defined enums; only departments, issue types, and item types are administrator-configurable.
+- Support-log deletion is a soft archive. Historical rows, assignment history, and legacy asset/inspection data are retained.
+- User passwords are administrator-managed; there is no public registration or self-service password-reset flow in v1.
+- PostgreSQL is the deployment target. The automated suite uses isolated SQLite because a local PostgreSQL role/password was not available during verification.
 
 ## Verification
 
+The test suite uses an in-memory SQLite database configured by `phpunit.xml`:
+
 ```bash
-php artisan migrate:fresh --seed
-vendor/bin/pint --dirty --format agent
 php artisan test --compact
+vendor/bin/pint --dirty --format agent
 composer validate
-composer audit
 ```
+
+Use a disposable database under `/tmp/opencode` for migration smoke tests. Never run `migrate:fresh`, `migrate:reset`, or another destructive command against `database/database.sqlite` or a real PostgreSQL database.

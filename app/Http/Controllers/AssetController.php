@@ -10,6 +10,7 @@ use App\Models\Asset;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
 
 class AssetController extends Controller
 {
@@ -78,6 +79,7 @@ class AssetController extends Controller
 
     public function destroy(Asset $asset): JsonResponse
     {
+        Gate::forUser(request()->user())->authorize('delete', $asset);
         $asset->delete();
 
         return response()->json(['message' => 'Asset deleted successfully.']);

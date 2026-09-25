@@ -40,7 +40,7 @@ class DirectoryApiTest extends TestCase
 
     public function test_departments_can_be_searched_filtered_and_paginated(): void
     {
-        $viewer = User::factory()->create();
+        $viewer = User::factory()->admin()->create();
         Department::factory()->create(['name' => 'Finance Operations']);
         Department::factory()->inactive()->create(['name' => 'Finance Archive']);
 
@@ -53,7 +53,7 @@ class DirectoryApiTest extends TestCase
             ->assertJsonStructure(['data', 'links', 'meta']);
     }
 
-    public function test_public_user_can_create_directory_user(): void
+    public function test_admin_can_create_directory_user(): void
     {
         $admin = User::factory()->admin()->create();
         $department = Department::factory()->create();
@@ -65,6 +65,8 @@ class DirectoryApiTest extends TestCase
                 'department_id' => $department->id,
                 'designation' => 'Field Technician',
                 'territory' => 'Lahore',
+                'password' => 'a-secure-test-password',
+                'password_confirmation' => 'a-secure-test-password',
                 'status' => 'active',
                 'role' => UserRole::Technician->value,
             ]);
@@ -72,7 +74,7 @@ class DirectoryApiTest extends TestCase
         $response
             ->assertCreated()
             ->assertJsonPath('email', 'field.technician@example.test')
-            ->assertJsonPath('role', 'technician')
+            ->assertJsonPath('role', 'technical_resource')
             ->assertJsonMissingPath('password');
         $user = User::query()->where('email', 'field.technician@example.test')->firstOrFail();
         $this->assertModelExists($user);
@@ -80,21 +82,21 @@ class DirectoryApiTest extends TestCase
 
     public function test_users_can_be_searched_filtered_and_paginated(): void
     {
-        $viewer = User::factory()->create();
+        $viewer = User::factory()->admin()->create();
         $department = Department::factory()->create();
         User::factory()->technician()->for($department, 'department')->create([
             'name' => 'Matching Technician',
             'territory' => 'Lahore',
         ]);
-        User::factory()->for($department, 'department')->create([
-            'name' => 'Matching User',
+        User::factory()->admin()->for($department, 'department')->create([
+            'name' => 'Matching Administrator',
         ]);
         User::factory()->inactive()->create([
             'name' => 'Matching Inactive',
         ]);
 
         $this->actingAs($viewer)
-            ->getJson('/api/v1/users?search=Matching&department_id='.$department->id.'&status=active&role=technician&per_page=10')
+            ->getJson('/api/v1/users?search=Matching&department_id='.$department->id.'&status=active&role=technical_resource&per_page=10')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.name', 'Matching Technician')
@@ -129,7 +131,7 @@ class DirectoryApiTest extends TestCase
 
     public function test_technical_personnel_can_be_searched_filtered_and_paginated(): void
     {
-        $viewer = User::factory()->create();
+        $viewer = User::factory()->admin()->create();
         $department = Department::factory()->create();
         TechnicalPersonnel::factory()->for($department, 'department')->create([
             'name' => 'Network Specialist',
@@ -147,7 +149,7 @@ class DirectoryApiTest extends TestCase
             ->assertJsonPath('meta.total', 1);
     }
 
-    public function test_public_user_can_update_directory_user(): void
+    public function test_admin_can_update_directory_user(): void
     {
         $admin = User::factory()->admin()->create();
         $user = User::factory()->create();

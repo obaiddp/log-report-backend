@@ -11,6 +11,7 @@ use App\Models\Inspection;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
 
 class InspectionController extends Controller
 {
@@ -70,7 +71,9 @@ class InspectionController extends Controller
 
     public function store(StoreInspectionRequest $request): JsonResponse
     {
-        $inspection = Inspection::query()->create($request->validated());
+        $attributes = $request->validated();
+        $attributes['created_by'] = $request->user()->getKey();
+        $inspection = Inspection::query()->create($attributes);
         $inspection->load(['asset.user', 'technicalPersonnel', 'createdBy']);
 
         return InspectionResource::make($inspection)
@@ -97,6 +100,7 @@ class InspectionController extends Controller
 
     public function destroy(Inspection $inspection): JsonResponse
     {
+        Gate::forUser(request()->user())->authorize('delete', $inspection);
         $inspection->delete();
 
         return response()->json(['message' => 'Inspection deleted successfully.']);
