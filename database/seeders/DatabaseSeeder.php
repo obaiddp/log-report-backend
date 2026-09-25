@@ -125,11 +125,7 @@ class DatabaseSeeder extends Seeder
         foreach ([
             ['name' => 'Hardware', 'description' => 'Hardware faults, damage, or replacement requirements.'],
             ['name' => 'Software', 'description' => 'Application, operating system, or installation issues.'],
-            ['name' => 'Network', 'description' => 'Network, internet, Wi-Fi, or connectivity issues.'],
-            ['name' => 'Printer Support', 'description' => 'Printer and printing-device support.'],
-            ['name' => 'Projector / Display', 'description' => 'Projector, display, and presentation-equipment support.'],
-            ['name' => 'Access Request', 'description' => 'Account, access, and permission requests.'],
-            ['name' => 'Other', 'description' => 'Other IT support requests.'],
+            ['name' => 'Network', 'description' => 'Network, internet, Wi-Fi, or connectivity issues.']
         ] as $attributes) {
             IssueType::query()->updateOrCreate(
                 ['name' => $attributes['name']],
@@ -193,3 +189,144 @@ class DatabaseSeeder extends Seeder
         return $password;
     }
 }
+
+
+
+
+// =============================================================================
+// =============================================================================
+// ============================================================================= Tables
+
+/*
+admin, network_administrator, software_developer
+*/ 
+
+// model roles {
+//     id
+//     name
+// }
+
+/*
+add department
+update department
+remove department
+
+add item_type
+update item_type
+remove item_type
+
+etc...
+
+for now all permissions will be given to admin
+
+*/
+
+model permissions{
+    id
+    name
+}
+
+model role_permission{
+    id
+    role_id
+    permission_id
+}
+
+users {
+    id,             auto
+    name,           string
+    email,          email string
+    password,       password string
+
+    user_role       int
+            
+    designation     string (example Senior Hardware Technician, Network Technician etc)
+
+    created_at,     datetime
+    updated_at      datetime
+}
+
+departments {
+    id,             auto
+    name,           string
+    code,           string
+
+    created_at,     datetime
+    updated_at,     datetime
+}
+
+item_types {
+    id,             auto
+    name,           string
+
+    created_at,     datetime
+    updated_at,     datetime
+}
+
+support_logs {
+    id,                 auto
+    ticket_number,      string
+
+    issue_date,     date
+    
+    initiated_by,   string
+    department_id,  integer
+
+    item_type_id,   integer
+    issue_types,    enum ('Hardware', 'Software', 'Network') // as multiple of these can be added as this will be checkbox in the form
+    issue_details,  text
+
+    status,         
+    /*
+    Status (Select)
+        1) Sold
+        2) In Progress (Select)
+            + 2-a) Indoor repairing
+        + 2-b) Outdoor repairing
+        3) Solve
+
+        in frontend status will something like this, so what should i add here in db
+    */
+
+    priority,       enum('low', 'medium', 'high', 'critical')
+
+    assigned_to,    integer
+    created_by,     integer
+
+    resolved_at,    datetime
+    closed_at,      datetime
+
+    created_at,     datetime
+    updated_at,     datetime
+}
+
+// =============================================================================
+// =============================================================================
+// ============================================================================= Tables End
+
+Schema::create('support_logs', function (Blueprint $table) {
+    $table->id();
+
+    $table->string('ticket_number')->unique();
+    
+    $table->date('issue_date');
+    
+    $table->string('initiated_by');
+    $table->foreignId('department_id')->constrained()->restrictOnDelete();
+    
+    $table->foreignId('item_type_id')->constrained()->restrictOnDelete();
+    
+    $table->text('description');
+    $table->string('status')->default('open');
+    $table->enum('priority', ['low', 'medium', 'high', 'critical'])->default('medium');
+    
+    $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
+    $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
+    
+    $table->text('resolution_notes')->nullable();
+    $table->text('internal_remarks')->nullable();
+    $table->timestamp('resolved_at')->nullable();
+    $table->timestamp('closed_at')->nullable();
+    $table->softDeletes();
+    $table->timestamps();
+});
