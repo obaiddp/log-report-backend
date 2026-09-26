@@ -43,23 +43,23 @@ class User extends Authenticatable
             ->exists();
     }
 
-    // public function createdSupportLogs(): HasMany
-    // {
-    //     return $this->hasMany(SupportLog::class, 'created_by');
-    // }
+    public function createdSupportLogs(): HasMany
+    {
+        return $this->hasMany(SupportLog::class, 'created_by');
+    }
 
-    // public function assignedSupportLogs(): HasMany
-    // {
-    //     return $this->hasMany(SupportLog::class, 'assigned_to');
-    // }
+    public function assignedSupportLogs(): HasMany
+    {
+        return $this->hasMany(SupportLog::class, 'assigned_to');
+    }
 
-    // public function assignmentsGiven(): HasMany
-    // {
-    //     return $this->hasMany(SupportLogAssignment::class, 'assigned_by');
-    // }
+    public function assignmentsGiven(): HasMany
+    {
+        return $this->hasMany(SupportLogAssignment::class, 'assigned_by');
+    }
 
-    // public function assignmentsReceived(): HasMany
-    // {
-    //     return $this->hasMany(SupportLogAssignment::class, 'assigned_to');
-    // }
+    public function assignmentsReceived(): HasMany
+    {
+        return $this->hasMany(SupportLogAssignment::class, 'assigned_to');
+    }
 }

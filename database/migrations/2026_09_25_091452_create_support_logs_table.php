@@ -13,17 +13,16 @@ return new class extends Migration
     {
         Schema::create('support_logs', function (Blueprint $table) {
             $table->id();
-
             $table->string('ticket_number')->unique();
-
             $table->date('issue_date');
-
             $table->string('initiated_by');
-            $table->foreignId('department_id')->constrained('departments')->restrictOnDelete();
 
+            $table->foreignId('department_id')->constrained('departments')->restrictOnDelete();
             $table->foreignId('item_type_id')->constrained('item_types')->restrictOnDelete();
 
             $table->string('status')->default('open');
+
+            $table->text('issue_details')->nullable();
 
             $table->enum('priority', ['low', 'medium', 'high', 'critical'])->default('medium');
 
