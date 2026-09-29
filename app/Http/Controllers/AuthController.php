@@ -2,82 +2,77 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\LoginRequest;
-use App\Http\Resources\UserResource;
-use App\Models\User;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
-class AuthController extends Controller
+use Illuminate\Support\Facades\Auth;
+
+use App\Models\User;
+use App\Http\Requests\LoginRequest;
+
+use Illuminate\Support\Facades\Hash;
+
+
+class AuthController
 {
-    public function login(LoginRequest $request): JsonResponse
+    public function login(Request $request)
     {
-        $credentials = $request->validated();
-        $user = User::query()->where('email', $credentials['email'])->first();
+        $throttleKey = strtolower($request->input('email')) . '|' . $request->ip();
+        
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            return response()->json(['message' => 'Too many login attempts. Please try again later.'], 429);
+        }
 
-        if ($user === null || ! Hash::check($credentials['password'], (string) $user->password)) {
+        $user = User::where('email', $request->input('email'))->first();
+
+        logger("--- SEE THE USER ---");
+        logger($request->input('password'));
+        logger($user->password);
+        logger(!Hash::check($request->input('password'), $user->password));
+
+        // 1. Password verification and user existence check using Hash::check
+        if (!$user || !Hash::check($request->input('password'), $user->password)) {
+            RateLimiter::hit($throttleKey, 60);
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
-        if (! $user->isActive()) {
-            return response()->json([
-                'message' => 'This account is inactive.',
-                'error' => 'account_inactive',
-            ], 403);
+        // 2. Email verification check
+        if (is_null($user->email_verified_at)) {
+            RateLimiter::hit($throttleKey, 60);
+            abort(403, 'Account is unverified.');
         }
+        RateLimiter::clear($throttleKey);
 
-        if (! $user->isVerified()) {
-            return response()->json([
-                'message' => 'Email verification is required before using the API.',
-                'error' => 'email_not_verified',
-            ], 403);
-        }
-
-        if (! Auth::guard('web')->attempt([
-            'email' => $credentials['email'],
-            'password' => $credentials['password'],
-        ], (bool) ($credentials['remember'] ?? false))) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
-        }
-
-        if ($request->hasSession()) {
-            $request->session()->regenerate();
-        }
+        // 3. Session and Auth login
+        $request->session()->regenerate();
+        Auth::login($user, $request->boolean('remember'));
 
         return response()->json([
-            'user' => UserResource::make($user->load('department')),
+            'data' => $user->load('role.permissions'),
         ]);
     }
 
-    public function logout(Request $request): JsonResponse
+    public function me(Request $request)
     {
-        Auth::guard('web')->logout();
+        return response()->json([
+            'has_session' => $request->hasSession(),
+            'session_id' => $request->session()->getId(),
+            'user_from_request' => $request->user(),
+            'auth_check' => Auth::check(),
+            'auth_user' => Auth::user(),
+        ]);
+    }
 
-        if ($request->hasSession()) {
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-        }
+    public function logout(Request $request)
+    {
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json(['message' => 'Logged out successfully.']);
-    }
-
-    public function me(Request $request): JsonResponse
-    {
-        $user = $request->user('sanctum');
-
-        if (! $user instanceof User) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        return response()->json([
-            'user' => UserResource::make($user->load('department')),
-        ]);
     }
 }

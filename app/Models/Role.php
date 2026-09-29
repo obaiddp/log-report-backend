@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 use Illuminate\Database\Eloquent\Model;
 
+
 class Role extends Model
 {
     protected $fillable = [

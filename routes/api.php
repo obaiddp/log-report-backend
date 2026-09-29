@@ -1,7 +1,21 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\AuthController;
 
-Route::prefix('v1')->name('api.v1.')->group(function (): void {
-    require __DIR__.'/api/v1.php';
+
+Route::get('/roles', [RoleController::class, 'roles']);
+
+Route::get('/users', [UserController::class, 'users']);
+
+
+Route::middleware('web')->group(function () {
+    Route::post('auth/login', [AuthController::class, 'login']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('auth/me', [AuthController::class, 'me']);
+    Route::post('auth/logout', [AuthController::class, 'logout']);
 });

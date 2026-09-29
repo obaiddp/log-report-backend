@@ -3,18 +3,20 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\User;
+use App\Models\Role;
 use Illuminate\Http\JsonResponse;
 
-class UserController
+class RoleController
 {
-    public function users(Request $request)
+    // get all roles
+    public function roles(Request $request): JsonResponse
     {
-        $currentUsers = User::all();
+        $presentRole = Role::all();
+
         return response()->json(
             [
                 'status' => 'success',
-                'data' => $currentUsers
+                'data' => $presentRole
             ],
             200
         );
