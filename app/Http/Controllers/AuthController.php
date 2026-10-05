@@ -28,11 +28,6 @@ class AuthController
 
         $user = User::where('email', $request->input('email'))->first();
 
-        logger("--- SEE THE USER ---");
-        logger($request->input('password'));
-        logger($user->password);
-        logger(!Hash::check($request->input('password'), $user->password));
-
         // 1. Password verification and user existence check using Hash::check
         if (!$user || !Hash::check($request->input('password'), $user->password)) {
             RateLimiter::hit($throttleKey, 60);
@@ -62,9 +57,9 @@ class AuthController
         return response()->json([
             'has_session' => $request->hasSession(),
             'session_id' => $request->session()->getId(),
-            'user_from_request' => $request->user(),
             'auth_check' => Auth::check(),
-            'auth_user' => Auth::user(),
+            'user_from_request' => $request->user()->load('role.permissions'),
+            'auth_user' => Auth::user()->load('role.permissions'),
         ]);
     }
 

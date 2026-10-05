@@ -177,4 +177,24 @@ vendor/bin/pint --dirty --format agent
 composer validate
 ```
 
-Use a disposable database under `/tmp/opencode` for migration smoke tests. Never run `migrate:fresh`, `migrate:reset`, or another destructive command against `database/database.sqlite` or a real PostgreSQL database.
+Use a disposable database under `/tmp/opencode` for migration smoke tests. Never run `migrate:fresh`, `migrate:reset`, 
+or another destructive command against `database/database.sqlite` or a real PostgreSQL database.
+
+
+
+
+============================
+
+---- Current Permissions ----
+
+ id |          name           |     created_at      |     updated_at      
+----+-------------------------+---------------------+---------------------
+  1 | manage_departments      
+  2 | manage_item_types       
+  3 | manage_issue_types
+
+  4 | manage_users
+
+  5 | view_reports            
+  6 | create_support_logs     
+  7 | update_own_support_logs 

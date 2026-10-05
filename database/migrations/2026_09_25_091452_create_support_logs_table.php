@@ -14,24 +14,26 @@ return new class extends Migration
         Schema::create('support_logs', function (Blueprint $table) {
             $table->id();
             $table->string('ticket_number')->unique();
+            
             $table->date('issue_date');
+            
             $table->string('initiated_by');
 
             $table->foreignId('department_id')->constrained('departments')->restrictOnDelete();
+
+            // --- issue type is missing idk 
             $table->foreignId('item_type_id')->constrained('item_types')->restrictOnDelete();
 
-            $table->string('status')->default('open');
+            /*solved, indoor repairing, outdoor repairing*/;
+            $table->enum('status', ['indoor_repairing', 'outdoor_repairing', 'solved'])->default('indoor_repairing');
 
             $table->text('issue_details')->nullable();
-
-            $table->enum('priority', ['low', 'medium', 'high', 'critical'])->default('medium');
 
             // --- assigned_to and created_by, idk use for now
             $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
 
             $table->timestamps();
-
             $table->timestamp('resolved_at')->nullable();
             $table->timestamp('closed_at')->nullable();
         });
