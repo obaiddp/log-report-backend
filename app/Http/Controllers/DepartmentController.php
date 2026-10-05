@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Department;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Log;
 
 class DepartmentController
 {
@@ -100,18 +102,35 @@ class DepartmentController
     // delete department by id
     public function deleteDepartmentById(Request $request): JsonResponse
     {
-        logger("Deleting department with ID: " . $request->id);
+        try {
+            // findOrFail: handles 404
+            $department = Department::findOrFail($request->id);
+            $department->delete();
+            
+            return response()->json(
+                [
+                    'status' => 'success',
+                    'message' => 'Department deleted successfully'
+                ],
+                200
+            );
+        }
+        catch (QueryException $e) {
+            $sqlState = $e->errorInfo[0] ?? '';
 
-        // findOrFail: handles 404
-        $department = Department::findOrFail($request->id);
-        $department->delete();
+            // 23503 = foreign_key_violation, 23001 = restrict_violation (PostgreSQL)
+            // 23000 = generic integrity violation (MySQL)
+            if (in_array($sqlState, ['23503', '23001', '23000'], true)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Cannot delete department: it is referenced by existing support logs',
+                ], 409);
+            }
 
-        return response()->json(
-            [
-                'status' => 'success',
-                'message' => 'Department deleted successfully'
-            ],
-            200
-        );
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Failed to delete department',
+            ], 500);
+        }
     }
 }

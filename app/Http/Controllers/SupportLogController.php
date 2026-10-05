@@ -135,7 +135,7 @@ class SupportLogController
     }
     
     // ---------- deleteSupportLogById
-    public function deleteSupportLogById(): JsonResponse
+    public function deleteSupportLogById(Request $request): JsonResponse
     {
         $supportLog = SupportLog::findOrFail($request->id);
         if (!$supportLog) {

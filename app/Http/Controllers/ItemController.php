@@ -6,6 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\ItemType;
 use Illuminate\Http\JsonResponse;
 
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Log;
+
 class ItemController
 {
     // get all items
@@ -28,10 +31,7 @@ class ItemController
         $validated = $request->validate([
             'name' => 'required|string|max:255'
         ]);
-
         $item = ItemType::create($validated);
-        logger("----------- Does the item get created? -----------");
-        logger($item);
 
         return response()->json([
             'status' => 'success',
@@ -98,16 +98,39 @@ class ItemController
     // delete item by id
     public function deleteItemById(Request $request): JsonResponse
     {
-        // findOrFail: handles 404
-        $item = ItemType::findOrFail($request->id);
-        $item->delete();
+       
 
-        return response()->json(
-            [
-                'status' => 'success',
-                'message' => 'Item deleted successfully'
-            ],
-            200
-        );
+        try {
+             // findOrFail: handles 404
+            $item = ItemType::findOrFail($request->id);
+            $item->delete();
+
+            return response()->json(
+                [
+                    'status' => 'success',
+                    'message' => 'Item deleted successfully'
+                ],
+                200
+            );
+        }
+        catch (QueryException $e) {
+            logger("DID I reach item deleteion controller");
+
+            $sqlState = $e->errorInfo[0] ?? '';
+
+            // 23503 = foreign_key_violation, 23001 = restrict_violation (PostgreSQL)
+            // 23000 = generic integrity violation (MySQL)
+            if (in_array($sqlState, ['23503', '23001', '23000'], true)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Cannot delete item: it is referenced by existing support logs',
+                ], 409);
+            }
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Failed to delete item',
+            ], 500);
+        }
     }
 }

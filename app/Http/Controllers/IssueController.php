@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\IssueType;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Log;
 
 class IssueController
 {
@@ -96,17 +98,37 @@ class IssueController
     // delete issue by id
     public function deleteIssueById(Request $request): JsonResponse
     {
-        // findOrFail: handles 404
-        $issue = IssueType::findOrFail($request->id);
-        $issue->delete();
 
-        return response()->json(
-            [
-                'status' => 'success',
-                'message' => 'Issue deleted successfully'
-            ],
-            200
-        );
+        try {
+            // findOrFail: handles 404
+            $issue = IssueType::findOrFail($request->id);
+            $issue->delete();
+
+            return response()->json(
+                [
+                    'status' => 'success',
+                    'message' => 'Issue deleted successfully'
+                ],
+                200
+            );
+        }
+        catch (QueryException $e) {
+            $sqlState = $e->errorInfo[0] ?? '';
+
+            // 23503 = foreign_key_violation, 23001 = restrict_violation (PostgreSQL)
+            // 23000 = generic integrity violation (MySQL)
+            if (in_array($sqlState, ['23503', '23001', '23000'], true)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Cannot delete issue: it is referenced by existing support logs',
+                ], 409);
+            }
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Failed to delete issue',
+            ], 500);
+        }
     }
 
 }
