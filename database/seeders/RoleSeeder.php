@@ -16,26 +16,16 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::table('roles')->insert([
-            'name' => 'admin',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $roles = ['admin', 'manager', 'helpdesk_agent'];
 
-        DB::table('roles')->insert([
-            'name' => 'network_administrator',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        foreach ($roles as $name){
+            Role::firstOrCreate(['name' => $name]);
+        }
 
-        DB::table('roles')->insert([
-            'name' => 'software_developer',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
     }
+}
 
-    /*
+/*
     -> Permissions:
     manage_departments
     manage_item_types
@@ -50,7 +40,4 @@ class RoleSeeder extends Seeder
     helpdesk_agent
 
     -> RolePermissions
-    
-    
-    */
-}
+*/
