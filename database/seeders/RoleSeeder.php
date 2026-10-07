@@ -34,4 +34,23 @@ class RoleSeeder extends Seeder
             'updated_at' => now(),
         ]);
     }
+
+    /*
+    -> Permissions:
+    manage_departments
+    manage_item_types
+    manage_issue_types
+    manage_users
+    manage_support_logs
+
+
+    -> Roles
+    Admin
+    Manager
+    helpdesk_agent
+
+    -> RolePermissions
+    
+    
+    */
 }

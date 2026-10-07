@@ -16,55 +16,16 @@ class PermissionSeeder extends Seeder
      */
     public function run(): void
     {
-        // // --- department permissions ---
-        // DB::table('permissions')->insert([
-        //     'name' => 'add-department',
-        //     'created_at' => now(),
-        //     'updated_at' => now(),
-        // ]);
-
-        // DB::table('permissions')->insert([
-        //     'name' => 'update-department',
-        //     'created_at' => now(),
-        //     'updated_at' => now(),
-        // ]);
-
-        // DB::table('permissions')->insert([
-        //     'name' => 'remove-department',
-        //     'created_at' => now(),
-        //     'updated_at' => now(),
-        // ]);
-
-        // // --- item_type permissions ---
-        // DB::table('permissions')->insert([
-        //     'name' => 'add-item_type',
-        //     'created_at' => now(),
-        //     'updated_at' => now(),
-        // ]);
-
-        // DB::table('permissions')->insert([
-        //     'name' => 'update-item_type',
-        //     'created_at' => now(),
-        //     'updated_at' => now(),
-        // ]);
-
-        // DB::table('permissions')->insert([
-        //     'name' => 'remove-item_type',
-        //     'created_at' => now(),
-        //     'updated_at' => now(),
-        // ]);
-
-        // =========================================================
-        // =========================================================
-
         $names = [
+            'manage_users',
+            'manage_roles',
+            'user_performance',
+            
             'manage_departments',
             'manage_item_types',
             'manage_issue_types',
-            'manage_users',
-            'view_reports',
+            
             'create_support_logs',
-            'update_own_support_logs',
         ];
 
         foreach ($names as $name) {
@@ -80,3 +41,16 @@ class PermissionSeeder extends Seeder
         Role::where('name', 'software_developer')->first()?->permissions()->sync($starter);
     }
 }
+
+/*
+======= Permissions to seed =======
+
+manage_user
+user_performance
+manage_role
+manage_departments
+manage_item_type
+manage_issue_type
+create_support_logs
+
+*/

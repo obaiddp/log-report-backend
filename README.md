@@ -1,200 +1,188 @@
-# IT Support Log System Backend
+# IT Support Log System: Backend
 
-Laravel 13 JSON API for the IT Support Log System. The application uses PostgreSQL-compatible migrations, Sanctum SPA cookie/session authentication, API resources, Form Requests, policies, factories, and idempotent seed data. SQLite is supported for the automated test suite.
+Laravel JSON API for the IT Support Log System. It uses Laravel Sanctum cookie (SPA) authentication and permission-based role access control (RBAC).
+
+The matching React frontend lives in a separate repository/folder (see its README).
 
 ## Requirements
 
-- PHP 8.3 or newer (the project is tested on PHP 8.5)
+- PHP 8.3 or newer
 - Composer
-- PostgreSQL for production-like deployments
+- A database: SQLite (easiest for local use) or PostgreSQL
+- PHP extensions: `pdo_sqlite` (or `pdo_pgsql`), `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `fileinfo`
 
-## Setup
+Check with `php -v` and `composer -V`.
 
-1. Copy `.env.example` to `.env` and set `APP_KEY`, the PostgreSQL connection values, `FRONTEND_URL`, and `SANCTUM_STATEFUL_DOMAINS`.
-2. Set `INITIAL_ADMIN_PASSWORD` to a private value (12+ characters is recommended). Set `INITIAL_RESOURCE_PASSWORD` as well before creating the initial technical-resource accounts. The seeder never uses a known default password and stops with a setup message if a required initial password is missing.
-3. Run additive migrations with `php artisan migrate`. Do not use `migrate:fresh` against a database containing real data.
-4. Run `php artisan db:seed` when the initial configuration and accounts are required. Seeding is idempotent and does not remove legacy assets or inspections.
-5. Start the API with `php artisan serve`.
-
-The API base URL is `http://localhost:8000/api/v1`.
-
-## Authentication and browser security
-
-The versioned API uses Laravel Sanctum first-party SPA authentication:
-
-- `GET /sanctum/csrf-cookie` starts the web session and sets the CSRF cookie.
-- The frontend sends the session cookie and `X-XSRF-TOKEN` header on subsequent requests.
-- `POST /api/v1/auth/login` accepts `{email, password, remember?}` and is protected by a five-attempt-per-minute email/IP throttle.
-- `POST /api/v1/auth/logout` logs out the current session.
-- `GET /api/v1/auth/me` returns the current user.
-- CORS allows the comma-separated `FRONTEND_URL` origins with credentials for both API routes and `/sanctum/csrf-cookie`. `SANCTUM_STATEFUL_DOMAINS` must contain the frontend host/port without a scheme.
-
-Login requires an **active and email-verified** account. Inactive and unverified accounts receive `403`; invalid credentials receive the normal `422` validation response. The additive role migration marks pre-existing active legacy users as verified because the earlier application had no verification workflow; newly created unverified users remain blocked. There is no public registration endpoint. Passwords are hashed and are never returned.
-
-## Response contract
-
-- Singular resources are JSON objects.
-- Paginated lists use Laravel's standard `{data, links, meta}` envelope.
-- User objects consistently expose `id`, `name`, `email`, `role`, `department_id`, `department`, and `status` (plus non-sensitive directory metadata where appropriate).
-- Support-log resources expose the fields required by the frontend: `id`, `ticket_number`, `issue_date`, `initiated_by`, `department_id`, `department`, `issue_types`, `item_type_id`, `item_type`, `description`, `status`, `priority`, `assigned_to`, `assigned_resource`, `created_by`, `creator`, `resolution_notes`, `internal_remarks`, `resolved_at`, `closed_at`, `created_at`, `updated_at`, and `assignments`.
-- `issue_types` is an array of `{id, name, status}` config objects; `item_type`, `department`, `assigned_resource`, and `creator` are nested objects. `assignments` is an ordered history array containing assignment IDs, resource/assigner IDs and nested users, `assigned_at`, and nullable `unassigned_at`.
-- Date-only business fields use `YYYY-MM-DD`; timestamps use ISO 8601.
-- Validation failures return `422` with `message` and field-level `errors`.
-- CSV cells beginning with spreadsheet formula characters are prefixed with an apostrophe.
-
-### Canonical roles
-
-New API writes and responses use only:
-
-- `admin`
-- `technical_resource`
-
-Legacy `technician` and `user` values are read and treated as `technical_resource`; the additive role migration converts them where the database permits. Technical resources cannot change roles or promote users.
-
-## Authorization
-
-- **Admin**: manage all support logs, assign/reassign resources, archive logs, export reports, manage users/departments/legacy personnel, and manage issue/item configuration.
-- **Technical Resource**: create support logs, view the shared support-log queue, and update status, resolution notes, and internal remarks only on logs assigned to them. Technical resources can self-assign a log they create when no assignee is supplied. Internal remarks are returned only to an admin or the assigned technical resource.
-- **Support-log deletion** is admin-only and is implemented as a soft archive. Assignment history is never discarded during reassignment.
-- Legacy asset/inspection routes remain available for historical compatibility, but are authenticated, deprecated, and must not be used as the new support-log workflow. Their tables and data are preserved.
-
-## Support-log workflow
-
-Statuses are code-defined in v1 and are intentionally not configurable:
-
-`open`, `in_progress`, `indoor_repair`, `outdoor_repair`, `resolved`, `closed`, `cancelled`
-
-Priorities are: `low`, `medium`, `high`, `critical`.
-
-The server generates a human-readable, unique ticket number in the form `ITL-YYYYMMDD-XXXXXXXXXX`. Creation timestamps are server-owned. `issue_date` cannot be in the future. A resolution note is required when entering `resolved` or `closed`. `resolved_at` is set on resolution and `closed_at` on closure; reopening an active workflow clears terminal timestamps.
-
-The initial transition policy is:
-
-- `open` may move to `in_progress`, `indoor_repair`, `outdoor_repair`, `resolved`, or `cancelled`.
-- `in_progress` may move to either repair state, `resolved`, or `cancelled`.
-- Repair states may move to another repair state, `in_progress`, `resolved`, or `cancelled`.
-- `resolved` may be closed, reopened to an active repair state, or cancelled.
-- `closed` and `cancelled` are terminal; an administrator must archive/recreate a log rather than silently rewriting terminal history.
-
-Status values are kept in `App\Enums\SupportLogStatus`; changing the code-defined workflow is a code change, not a configuration CRUD operation.
-
-## Endpoints
-
-All routes below are relative to `/api/v1` and, except for health and login, require Sanctum authentication.
-
-### Health and authentication
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `GET` | `/health` | Public service readiness |
-| `GET` | `/sanctum/csrf-cookie` | Sanctum SPA CSRF/session bootstrap (outside the `/api/v1` prefix) |
-| `POST` | `/auth/login` | Start a session |
-| `POST` | `/auth/logout` | End the session |
-| `GET` | `/auth/me` | Current user |
-
-### Support logs
-
-| Method | Endpoint | Authorization |
-| --- | --- | --- |
-| `GET` | `/support-log-options` | Authenticated safe lookup for form options; admins also receive inactive historical options |
-| `GET` | `/support-logs` | Authenticated shared queue |
-| `POST` | `/support-logs` | Admin or technical resource |
-| `GET` | `/support-logs/{id}` | Authenticated shared queue |
-| `PUT/PATCH` | `/support-logs/{id}` | Admin, or assigned technical resource for permitted fields |
-| `DELETE` | `/support-logs/{id}` | Admin; soft archive |
-
-List parameters: `search`, `date_from`, `date_to`, `department_id`, `issue_type_id`, `item_type_id`, `status`, `priority`, `assigned_to`, `initiated_by`, `ticket_number`, `page`, `per_page` (maximum 100), `sort_by`, and `sort_direction`. Sort fields are allow-listed.
-
-### Configuration and directory
-
-| Method | Endpoint | Authorization |
-| --- | --- | --- |
-| `GET` | `/issue-types` | Authenticated lookup |
-| `POST` | `/issue-types` | Admin |
-| `GET/PUT/PATCH/DELETE` | `/issue-types/{id}` | Authenticated read; admin mutation |
-| `GET` | `/item-types` | Authenticated lookup |
-| `POST` | `/item-types` | Admin |
-| `GET/PUT/PATCH/DELETE` | `/item-types/{id}` | Authenticated read; admin mutation |
-| `GET` | `/departments` | Authenticated lookup |
-| `POST` | `/departments` | Admin |
-| `GET/PUT/PATCH/DELETE` | `/departments/{id}` | Authenticated read; admin mutation |
-| `GET` | `/users` | Authenticated directory lookup |
-| `POST` | `/users` | Admin |
-| `GET/PUT/PATCH/DELETE` | `/users/{id}` | Authenticated safe read; admin mutation; passwords are write-only |
-| `GET` | `/technical-personnel` | Authenticated lookup (deprecated legacy directory) |
-| `POST` | `/technical-personnel` | Admin (deprecated legacy directory) |
-| `GET/PUT/PATCH/DELETE` | `/technical-personnel/{id}` | Authenticated safe read; admin mutation (deprecated legacy directory) |
-
-Issue types and item types have `active`/`inactive` status fields. Config records referenced by support-log history cannot be hard-deleted.
-
-### Dashboard and reports
-
-These endpoints are authenticated and admin-oriented. They accept `date_from`, `date_to`, and the common support-log filters where meaningful. Date filters use `issue_date`; dashboard `created_*` metrics use `created_at`.
-
-| Method | Endpoint | Response shape |
-| --- | --- | --- |
-| `GET` | `/dashboard/summary` | `{filters, period, metrics, overdue_rule, resolution_time_basis, generated_at}` |
-| `GET` | `/reports/by-department` | `{data, filters, meta}`; each row has department and status counts |
-| `GET` | `/reports/by-resource` | `{data, filters, meta}`; includes an unassigned row |
-| `GET` | `/reports/by-issue-type` | `{data, filters, meta}`; counts the relational pivot without duplicate log rows |
-| `GET` | `/reports/by-item` | `{data, filters, meta}`; item-category totals and status counts |
-| `GET` | `/reports/by-status` | `{data, filters, meta}`; includes every status, including zero counts |
-| `GET` | `/reports/export` | Streamed support-log CSV |
-
-Dashboard metrics include `total`, `open`, `in_progress`, `indoor_repair`, `outdoor_repair`, `resolved`, `closed`, `cancelled`, `unresolved`, `unassigned`, `critical`, `created_today`, `created_this_week`, `created_this_month`, `overdue`, and `average_resolution_time_hours`. Overdue means an active log older than seven days from `created_at`. Average resolution time is calculated only when both `created_at` and `resolved_at` are present. The summary also includes status, priority, department, resource, issue-type, and item breakdowns for the dashboard charts. Reports aggregate in the database and do not serialize all matching rows into JSON.
-
-## Migrations and legacy data
-
-The new tables are additive:
-
-- `issue_types`
-- `item_types`
-- `support_logs`
-- `support_log_issue_types`
-- `support_log_assignments`
-
-The role normalization and Sanctum personal-access-token migrations are also additive. Existing `assets`, `inspections`, `technical_personnel`, and their rows are not dropped. Foreign keys use restrictive deletion for historical actors/configuration and soft deletion is used for support logs.
-
-## Seed data
-
-`DatabaseSeeder` idempotently creates the baseline departments, initial issue/item options, four technical-resource users (`Afaq`, `Haris`, `Obaid`, and `Zulfiqar`), and `Mudassir` as the IT Department Head administrator who may also be assigned work. It never creates a known default password.
-
-## Current limitations and decisions
-
-- Attachments/file uploads are not included in v1 because no secure storage and malware-validation workflow has been defined.
-- Statuses and priorities are code-defined enums; only departments, issue types, and item types are administrator-configurable.
-- Support-log deletion is a soft archive. Historical rows, assignment history, and legacy asset/inspection data are retained.
-- User passwords are administrator-managed; there is no public registration or self-service password-reset flow in v1.
-- PostgreSQL is the deployment target. The automated suite uses isolated SQLite because a local PostgreSQL role/password was not available during verification.
-
-## Verification
-
-The test suite uses an in-memory SQLite database configured by `phpunit.xml`:
+## Quick start
 
 ```bash
-php artisan test --compact
-vendor/bin/pint --dirty --format agent
-composer validate
+# 1. Install dependencies
+composer install
+
+# 2. Create your environment file
+cp .env.example .env
+php artisan key:generate
+
+# 3. Configure .env (see "Environment" below)
+
+# 4. Create the database tables
+php artisan migrate
+
+# 5. Load roles, permissions, users and lookup data
+php artisan db:seed
+
+# 6. Start the API
+php artisan serve
 ```
 
-Use a disposable database under `/tmp/opencode` for migration smoke tests. Never run `migrate:fresh`, `migrate:reset`, 
-or another destructive command against `database/database.sqlite` or a real PostgreSQL database.
+The API is now available at `http://127.0.0.1:8000/api`.
 
+### Using SQLite (simplest)
 
+```bash
+touch database/database.sqlite
+```
 
+In `.env`:
 
-============================
+```env
+DB_CONNECTION=sqlite
+# Remove or comment out DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+```
 
----- Current Permissions ----
+### Using PostgreSQL
 
- id |          name           |     created_at      |     updated_at      
-----+-------------------------+---------------------+---------------------
-  1 | manage_departments      
-  2 | manage_item_types       
-  3 | manage_issue_types
+Create an empty database first, then set in `.env`:
 
-  4 | manage_users
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=support_log
+DB_USERNAME=your_user
+DB_PASSWORD=your_password
+```
 
-  5 | view_reports            
-  6 | create_support_logs     
-  7 | update_own_support_logs 
+## Environment
+
+These values must be set in `.env`. The cookie-auth ones are the most common source of problems.
+
+```env
+APP_URL=http://127.0.0.1:8000
+
+# Frontend origin(s), comma-separated, with scheme
+FRONTEND_URL=http://localhost:5173
+
+# Frontend host:port WITHOUT scheme. Must match how you open the frontend.
+SANCTUM_STATEFUL_DOMAINS=localhost:5173,127.0.0.1:5173
+
+SESSION_DRIVER=database
+SESSION_DOMAIN=null
+```
+
+Use `localhost` or `127.0.0.1` consistently. Opening the frontend on one and the API on the other breaks cookies.
+
+If your seeders read initial passwords from the environment, set them before seeding:
+
+```env
+INITIAL_ADMIN_PASSWORD=choose-a-private-password
+INITIAL_RESOURCE_PASSWORD=choose-another-password
+```
+
+Check `database/seeders/UserSeeder.php` for the exact variable names and the seeded email addresses. After seeding, those are the accounts you log in with.
+
+## Roles and permissions
+
+Access is controlled by **permissions** assigned to **roles**. Admins can change the assignments in the app under **Roles & Permissions** (`/admin/roles`).
+
+Seeded roles: `admin`, `network_administrator`, `software_developer`.
+
+| Permission | Allows |
+|---|---|
+| `manage_departments` | Create, edit and delete departments |
+| `manage_item_types` | Manage item types |
+| `manage_issue_types` | Manage issue types |
+| `manage_users` | Manage user accounts |
+| `manage_roles` | Edit which permissions each role has |
+| `view_reports` | Organisation-wide dashboard and all logs |
+| `create_support_logs` | Create support logs |
+| `update_own_support_logs` | Edit logs the user created or is assigned to |
+| `user_performance` | See the user performance section on the dashboard |
+
+By default `admin` gets every permission. The other roles get `create_support_logs` and `update_own_support_logs`.
+
+After changing a role's permissions, affected users must log out and back in.
+
+## Authentication (cookie-based Sanctum)
+
+1. `GET /sanctum/csrf-cookie` sets the `XSRF-TOKEN` and session cookies.
+2. `POST /api/auth/login` with `{ "email": "...", "password": "..." }`.
+3. Send the cookies and an `X-XSRF-TOKEN` header on every later request.
+4. `GET /api/auth/me` returns the current user with `role.permissions`.
+5. `POST /api/auth/logout` ends the session.
+
+Always send `Accept: application/json`, otherwise Laravel redirects instead of returning JSON errors.
+
+## Main endpoints
+
+All routes are under `/api`.
+
+| Area | Endpoints |
+|---|---|
+| Auth | `POST auth/login`, `GET auth/me`, `POST auth/logout` |
+| Support logs | `GET/POST support-logs`, `GET/PUT/DELETE support-logs/{id}` |
+| Departments | `GET departments`; `POST/PUT/DELETE` need `manage_departments` |
+| Item types | `GET items`; `POST/PUT/DELETE` need `manage_item_types` |
+| Issue types | `GET issues`; `POST/PUT/DELETE` need `manage_issue_types` |
+| Users | `GET/POST users`, `GET/PUT/DELETE users/{id}` |
+| Roles | `GET roles` |
+| Permissions | `GET permissions`, `GET/PUT roles/{role_id}/permissions` |
+| Dashboard | `GET dashboard/user-performance` (needs `user_performance`) |
+
+Validation failures return `422` with `message` and field-level `errors`.
+
+## Testing with Postman
+
+1. Create an environment variable `base = http://127.0.0.1:8000`.
+2. Add headers `Accept: application/json` and `Origin: http://localhost:5173` (it must match a `SANCTUM_STATEFUL_DOMAINS` entry).
+3. Add a collection pre-request script that copies the CSRF cookie into the header:
+
+   ```js
+   const token = pm.cookies.get('XSRF-TOKEN');
+   if (token) {
+     pm.request.headers.upsert({ key: 'X-XSRF-TOKEN', value: decodeURIComponent(token) });
+   }
+   ```
+4. Run `GET {{base}}/sanctum/csrf-cookie`, then `POST {{base}}/api/auth/login`.
+
+## Common problems
+
+| Symptom | Likely cause |
+|---|---|
+| `419 CSRF token mismatch` | Skipped `/sanctum/csrf-cookie`, or the frontend host does not match `SANCTUM_STATEFUL_DOMAINS` |
+| `401` right after login | `localhost` vs `127.0.0.1` mismatch, or `SESSION_DOMAIN` is wrong |
+| `403` on an endpoint | The user's role lacks the permission; fix it in Roles & Permissions, then log in again |
+| HTML or a redirect instead of JSON | Missing `Accept: application/json` header |
+| CORS error in the browser | `FRONTEND_URL` does not include the exact frontend origin |
+| `could not find driver` | Missing `pdo_sqlite` / `pdo_pgsql` PHP extension |
+| Changes to `.env` ignored | Run `php artisan config:clear` |
+
+## Useful commands
+
+```bash
+php artisan migrate               # apply new migrations
+php artisan db:seed               # run all seeders
+php artisan db:seed --class=PermissionSeeder
+php artisan route:list            # list all routes
+php artisan config:clear          # clear cached config
+php artisan tinker                # interactive console
+php artisan test                  # run tests
+```
+
+> **Warning:** `php artisan migrate:fresh` deletes all data. Never run it against a database with real records.
+
+## Support log statuses
+
+`indoor_repairing`, `outdoor_repairing`, `solved`
+
+`resolved_at` is set when a log becomes `solved`, and cleared if it is reopened. The dashboard's average resolution time is calculated from `created_at` to `resolved_at`.

@@ -37,11 +37,11 @@ class AuthController
         }
 
         // 2. Email verification check
-        if (is_null($user->email_verified_at)) {
-            RateLimiter::hit($throttleKey, 60);
-            abort(403, 'Account is unverified.');
-        }
-        RateLimiter::clear($throttleKey);
+        // if (is_null($user->email_verified_at)) {
+        //     RateLimiter::hit($throttleKey, 60);
+        //     abort(403, 'Account is unverified.');
+        // }
+        // RateLimiter::clear($throttleKey);
 
         // 3. Session and Auth login
         $request->session()->regenerate();

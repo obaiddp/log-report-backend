@@ -12,8 +12,7 @@ class RolePermissionSeeder extends Seeder
     {
         // Adjust role names to match what your RoleSeeder creates
         $map = [
-            'admin' => ['manage_departments', 'manage_item_types', 'manage_issue_types'],
-            // 'staff' => [],
+            'admin' => ['manage_departments', 'manage_item_types', 'manage_issue_types', 'manage_roles'],
         ];
 
         foreach ($map as $roleName => $permissionNames) {
