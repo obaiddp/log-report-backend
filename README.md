@@ -1,8 +1,12 @@
 # IT Support Log System: Backend
 
-Laravel JSON API for the IT Support Log System. It uses Laravel Sanctum cookie (SPA) authentication and permission-based role access control (RBAC).
+## log-report and inspection form
+Laravel JSON APIs for the 
+- IT Support Log System (only for internal ICT department usage).
+- Inspection form (form for ICT department and then pdf for admin department)
+- It uses Laravel Sanctum cookie (SPA) authentication
+- permission-based role access control (RBAC).
 
-The matching React frontend lives in a separate repository/folder (see its README).
 
 ## Requirements
 
