@@ -9,24 +9,7 @@ Laravel JSON APIs for the
 
 ## Database overview
 
-The system has three areas: **access control** (roles and permissions), **IT support logs** (tickets), and **asset inspections** (forms that are exported as PDFs for the admin department).
-
-```mermaid
-erDiagram
-  ROLES ||--o{ USERS : has
-  ROLES }o--o{ PERMISSIONS : "role_permission"
-  USERS ||--o{ SUPPORT_LOGS : creates
-  USERS |o--o{ SUPPORT_LOGS : "assigned to"
-  USERS ||--o{ ASSET_INSPECTIONS : prepares
-  DEPARTMENTS ||--o{ SUPPORT_LOGS : raises
-  DEPARTMENTS ||--o{ ASSET_INSPECTIONS : "belongs to"
-  ITEM_TYPES ||--o{ SUPPORT_LOGS : concerns
-  ITEM_TYPES ||--o{ ASSET_INSPECTIONS : "inspected as"
-  SUPPORT_LOGS }o--o{ ISSUE_TYPES : "support_log_issue_type"
-```
-
-<details>
-<summary><b>View full schema (all columns)</b></summary>
+Three areas: access control (roles and permissions), IT support logs, and asset inspections.
 
 ```mermaid
 erDiagram
@@ -42,85 +25,7 @@ erDiagram
   ITEM_TYPES ||--o{ ASSET_INSPECTIONS : inspected_as
   SUPPORT_LOGS ||--o{ SUPPORT_LOG_ISSUE_TYPE : tagged
   ISSUE_TYPES ||--o{ SUPPORT_LOG_ISSUE_TYPE : classifies
-
-  ROLES {
-    bigint id PK
-    string name
-  }
-  PERMISSIONS {
-    bigint id PK
-    string name
-  }
-  ROLE_PERMISSION {
-    bigint role_id FK
-    bigint permission_id FK
-  }
-  USERS {
-    bigint id PK
-    string name
-    string email UK
-    string password
-    string designation
-    bigint role_id FK
-  }
-  DEPARTMENTS {
-    bigint id PK
-    string name
-    string code
-  }
-  ITEM_TYPES {
-    bigint id PK
-    string name
-    boolean has_specification
-  }
-  ISSUE_TYPES {
-    bigint id PK
-    string name
-  }
-  SUPPORT_LOGS {
-    bigint id PK
-    string ticket_number UK
-    date issue_date
-    string initiated_by
-    bigint department_id FK
-    bigint item_type_id FK
-    enum status
-    text issue_details
-    bigint created_by FK
-    bigint assigned_to FK
-  }
-  SUPPORT_LOG_ISSUE_TYPE {
-    bigint support_log_id FK
-    bigint issue_type_id FK
-  }
-  ASSET_INSPECTIONS {
-    bigint id PK
-    string username
-    string designation
-    string email
-    string cell
-    bigint department_id FK
-    string territory
-    string status
-    bigint item_type_id FK
-    string model
-    string brand
-    string serial_number
-    string item_tag
-    string ram
-    string generation
-    string hard_drive
-    text item_problem
-    text it_remarks
-    text admin_remarks
-    bigint prepared_by FK
-    text user_signature
-    text admin_signature
-  }
 ```
-
-</details>
-
 
 ## Requirements
 
