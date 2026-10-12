@@ -29,7 +29,8 @@ class ItemController
     public function postItems(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
+            'has_specification' => 'nullable|boolean',
         ]);
         $item = ItemType::create($validated);
 
@@ -63,23 +64,14 @@ class ItemController
         );
     }
 
-     // update item by id
+    // update item by id
     public function updateItemById(Request $request): JsonResponse
     {
-        $item = ItemType::find($request->id);
-
-        if (!$item) {
-            return response()->json(
-                [
-                    'status' => 'error',
-                    'message' => 'Item not found'
-                ],
-                404
-            );
-        }
-
+        $item = ItemType::findOrFail($request->id);
+        
         $validated = $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'string|max:255',
+            'has_specification' => 'nullable|boolean'
         ]);
 
         $item->update($validated);
@@ -92,8 +84,6 @@ class ItemController
             200
         );
     }
-
-
 
     // delete item by id
     public function deleteItemById(Request $request): JsonResponse
