@@ -11,6 +11,7 @@ use App\Http\Controllers\SupportLogController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AssetInspectionController;
 
 // --- RBAC
 Route::get('/users', [UserController::class, 'getUsers']);
@@ -48,6 +49,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/support-logs/{id}', [SupportLogController::class, 'updateSupportLogById']);
     Route::delete('/support-logs/{id}', [SupportLogController::class, 'deleteSupportLogById']);
 
+    // --- asset inspections
+    Route::get('/asset-inspections', [AssetInspectionController::class, 'getAssetInspections']);
+    Route::post('/asset-inspections', [AssetInspectionController::class, 'postAssetInspections']);
+    Route::get('/asset-inspections/{id}', [AssetInspectionController::class, 'getAssetInspectionById']);
+    Route::put('/asset-inspections/{id}', [AssetInspectionController::class, 'updateAssetInspectionById']);
+    Route::delete('/asset-inspections/{id}', [AssetInspectionController::class, 'deleteAssetInspectionById']);
+
 
     // --- departments
     Route::get('/departments', [DepartmentController::class, 'getDepartments']);
@@ -76,4 +84,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/issues/{id}', [IssueController::class, 'updateIssueById']); 
         Route::delete('/issues/{id}', [IssueController::class, 'deleteIssueById']);
     });
+
+
+
 });
