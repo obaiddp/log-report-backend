@@ -1,6 +1,6 @@
-# IT Support Log System: Backend
+# CEF365: Backend
 
-## log-report and  inspection form
+## log-report and  asset inspection form
 Laravel JSON APIs for the 
 - IT Support Log System (only for internal ICT department usage).
 - Asset/Item Inspection form (form for ICT department and then pdf for admin department)
