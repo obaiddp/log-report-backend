@@ -24,8 +24,8 @@ return new class extends Migration
             // --- issue type is missing idk 
             $table->foreignId('item_type_id')->constrained('item_types')->restrictOnDelete();
 
-            /*solved, indoor repairing, outdoor repairing*/;
-            $table->enum('status', ['indoor_repairing', 'outdoor_repairing', 'solved'])->default('indoor_repairing');
+            /* in_progress, indoor repairing, outdoor repairing, resolved, closed*/;
+            $table->enum('status', ['in_progress', 'indoor_repairing', 'outdoor_repairing', 'resolved', 'closed'])->default('indoor_repairing');
 
             $table->text('issue_details')->nullable();
 
