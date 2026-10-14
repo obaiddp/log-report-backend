@@ -209,3 +209,33 @@ php artisan test                  # run tests
 `indoor_repairing`, `outdoor_repairing`, `solved`
 
 `resolved_at` is set when a log becomes `solved`, and cleared if it is reopened. The dashboard's average resolution time is calculated from `created_at` to `resolved_at`.
+
+
+## -----------------------------------
+
+--- Current `Item_TYPES`
+
+| Category | ~Tickets | Category | ~Tickets |
+|---|---|---|---|
+| Laptop | ~385 | AV & Cabling | ~11 |
+| Email | ~65 | Internet (→Network) | ~11 |
+| Desktop | ~70 | Procurement | ~14 |
+| Display & Projection | ~38 | Scanner | ~10 |
+| Meeting | ~50 | CCTV | ~9 |
+| Network | ~23 | Support | ~9 |
+| Data & Backup | ~31 | Servers | ~8 |
+| Printer | ~34 | Accessories / Components / Mobile / Accounts / Applications | ~25 |
+
+--- Current `STATUS`
+closed
+in_progress
+indoor_repairing
+outdoor_repairing
+resolved
+
+--- Current `Issue Type`
+Hardware
+Software
+Hardware & Software
+
+## -----------------------------------
