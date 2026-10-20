@@ -9,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 class RoleController
 {
     // get all roles
-    public function roles(Request $request): JsonResponse
+    public function getRoles(Request $request): JsonResponse
     {
         $presentRole = Role::all();
 
@@ -22,5 +22,19 @@ class RoleController
         );
     }
 
+    // post 1 Role
+    public function postRole(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255'
+        ]);
+
+        $role = Role::create($validated);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $role
+        ], 201);
+    }
     
 }

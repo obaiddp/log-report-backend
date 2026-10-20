@@ -2,10 +2,7 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-
-use App\Models\IssueType;
 use Illuminate\Support\Facades\DB;
 
 class ItemTypeSeeder extends Seeder
@@ -15,33 +12,43 @@ class ItemTypeSeeder extends Seeder
      */
     public function run(): void
     {
-        $names = [
-            'Desktop',
-            'Laptop',
-            'Printer',
-            'Scanner',
-            'Monitor',
-            'Keyboard / Mouse',
-            'Router',
-            'Switch',
-            'Access Point',
-            'Server',
-            'UPS',
-            'Projector',
-            'IP Phone',
-            'CCTV',
-            'Software',
-            'Email Account',
-            'Network / Internet',
-            'Other',
+        $uniqueItems = [
+            "Laptop",
+            "Printer",
+            "Support",
+            "Network",
+            "Monitor",
+            "Inventory & Supplies",
+            "Email",
+            "Display & Projection",
+            "CCTV",
+            "Desktop",
+            "Meetings & Events",
+            "Procurement",
+            "Scanner",
+            "AV & Cabling",
+            "Servers",
+            "Internet",
+            "Data & Backup",
+            "Mobile/Tablet",
+            "Applications & OS",
+            "Accessories",
+            "Accounts & Access",
+            "Components",
+            "Traveling & Visit"
         ];
 
-        foreach ($names as $name) {
-            DB::table('item_types')->insert([
-                'name' => $name,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]); 
+        $now = now();
+
+        foreach ($uniqueItems as $name) {
+            DB::table('item_types')->updateOrInsert(
+                ['name' => $name],
+                [
+                    'has_specification' => false,
+                    'updated_at' => $now,
+                    'created_at' => $now,
+                ]
+            );
         }
 
     }

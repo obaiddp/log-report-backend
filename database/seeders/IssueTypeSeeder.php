@@ -17,8 +17,7 @@ class IssueTypeSeeder extends Seeder
     {
         $names = [
             'Hardware',
-            'Software',
-            'Network'
+            'Software'
         ];
 
         foreach ($names as $name) {
