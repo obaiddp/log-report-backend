@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AssetInspection extends Model
 {
+    public const APPROVAL_PENDING_ADMIN = 'pending_admin';
+    public const APPROVAL_COMPLETED = 'completed';
+    public const APPROVAL_RETURNED = 'returned';
+
     protected $fillable = [
         'username',
         'designation',
@@ -26,9 +30,25 @@ class AssetInspection extends Model
         'item_problem',
         'it_remarks',
         'admin_remarks',
+        'approval_status',
         'prepared_by',
-        'user_signature',
-        'admin_signature',
+        'admin_user',
+        'prepared_by_digital_signature',
+        'user_digital_signature',
+        'admin_digital_signature',
+        'prepared_signed_at',
+        'user_signed_at',
+        'admin_signed_at',
+        'return_reason',
+    ];
+
+    protected $casts = [
+        'prepared_by_digital_signature' => 'boolean',
+        'user_digital_signature' => 'boolean',
+        'admin_digital_signature' => 'boolean',
+        'prepared_signed_at' => 'datetime',
+        'user_signed_at' => 'datetime',
+        'admin_signed_at' => 'datetime',
     ];
 
     public function department(): BelongsTo
@@ -46,4 +66,13 @@ class AssetInspection extends Model
         return $this->belongsTo(User::class, 'prepared_by');
     }
 
+    public function adminUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_user');
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->approval_status === self::APPROVAL_COMPLETED;
+    }
 }

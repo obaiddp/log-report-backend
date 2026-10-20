@@ -3,12 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\AssetInspection;
+use App\Notifications\InspectionCompleted;
+use App\Notifications\InspectionNeedsSignature;
+use App\Notifications\InspectionReturned;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-
 
 class AssetInspectionController
 {
@@ -16,6 +16,14 @@ class AssetInspectionController
         'department',
         'itemType',
         'preparedBy',
+        'adminUser',
+    ];
+
+    private const STATUSES = [
+        'handover_for_repairing',
+        'recieved_after_repairing',
+        'new_purchase',
+        'others',
     ];
 
     public function getAssetInspections(Request $request): JsonResponse
@@ -30,6 +38,15 @@ class AssetInspectionController
         ]);
     }
 
+    public function getAssetInspectionById(AssetInspection $assetInspection): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'data'   => $assetInspection->load(self::RELATIONS),
+        ]);
+    }
+
+    // From ICT department
     public function postAssetInspections(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -39,8 +56,7 @@ class AssetInspectionController
             'cell' => ['nullable', 'string', 'max:20'],
             'department_id' => ['required', 'exists:departments,id'],
             'territory' => ['nullable', 'string', 'max:255'],
-            'status' => ['nullable', 'string', 'max:255'],
-            
+            'status' => ['sometimes', 'nullable', Rule::in(self::STATUSES)], // item status
 
             'item_type_id' => ['required', 'exists:item_types,id'],
             'model' => ['required', 'string', 'max:255'],
@@ -53,47 +69,65 @@ class AssetInspectionController
 
             'item_problem' => ['nullable', 'string'],
             'it_remarks' => ['nullable', 'string'],
-            'admin_remarks' => ['nullable', 'string'],
 
-            'prepared_by' => ['required', 'exists:users,id'],
-            'user_signature' => ['nullable', 'string', 'max:255'],
-            'admin_signature' => ['nullable', 'string', 'max:255'],
+            // The approver the ICT person assigns. Cannot be the creator.
+            'admin_user' => [
+                'required',
+                'exists:users,id',
+                Rule::notIn([$request->user()->id]),
+            ],
+
+            // Must be true: the ICT person confirms the user acknowledged the form.
+            'user_digital_signature' => ['accepted'],
         ]);
 
-        $asset = AssetInspection::create($validated);
+        $asset = AssetInspection::create([
+            ...$validated,
+            'prepared_by' => $request->user()->id,
+            'prepared_by_digital_signature' => true,
+            'prepared_signed_at' => now(),
+            'user_digital_signature' => true,
+            'user_signed_at' => now(),
+            'admin_digital_signature' => false,
+            'approval_status' => AssetInspection::APPROVAL_PENDING_ADMIN,
+        ]);
+
+        $asset->load(self::RELATIONS);
+        $asset->adminUser->notify(new InspectionNeedsSignature($asset));
 
         return response()->json([
             'status' => 'success',
+            'message' => 'Asset inspection created and sent to the admin for signature',
             'data'   => $asset,
         ], 201);
     }
 
-    public function getAssetInspectionById(Request $request): JsonResponse
+    // From ICT department. Allowed while pending or after being returned.
+    public function updateAssetInspectionById(Request $request, AssetInspection $assetInspection): JsonResponse
     {
-        $asset = AssetInspection::with(self::RELATIONS)->findOrFail($request->id);
+        abort_unless(
+            (int) $assetInspection->prepared_by === $request->user()->id,
+            403,
+            'Only the person who prepared this inspection can edit it.'
+        );
+        abort_if(
+            $assetInspection->isCompleted(),
+            409,
+            'A completed inspection cannot be edited.'
+        );
 
-        return response()->json([
-            'status' => 'success',
-            'data'   => $asset,
-        ]);
-    }
-
-    public function updateAssetInspectionById(Request $request): JsonResponse
-    {
-        $asset = AssetInspection::findOrFail($request->id);
         $validated = $request->validate([
-            'username' => ['string', 'max:255'],
+            'username' => ['sometimes', 'required', 'string', 'max:255'],
             'designation' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'cell' => ['nullable', 'string', 'max:20'],
-            'department_id' => ['exists:departments,id'],
+            'department_id' => ['sometimes', 'required', 'exists:departments,id'],
             'territory' => ['nullable', 'string', 'max:255'],
-            'status' => ['nullable', 'string', 'max:255'],
-            
+            'status' => ['sometimes', 'nullable', Rule::in(self::STATUSES)],
 
-            'item_type_id' => ['exists:item_types,id'],
-            'model' => ['string', 'max:255'],
-            'brand' => ['string', 'max:255'],
+            'item_type_id' => ['sometimes', 'required', 'exists:item_types,id'],
+            'model' => ['sometimes', 'required', 'string', 'max:255'],
+            'brand' => ['sometimes', 'required', 'string', 'max:255'],
             'serial_number' => ['nullable', 'string', 'max:255'],
             'item_tag' => ['nullable', 'string', 'max:255'],
             'ram' => ['nullable', 'string', 'max:50'],
@@ -102,30 +136,131 @@ class AssetInspectionController
 
             'item_problem' => ['nullable', 'string'],
             'it_remarks' => ['nullable', 'string'],
-            'admin_remarks' => ['nullable', 'string'],
 
-            'prepared_by' => ['exists:users,id'],
-            'user_signature' => ['nullable', 'string', 'max:255'],
-            'admin_signature' => ['nullable', 'string', 'max:255'],
+            'admin_user' => [
+                'sometimes',
+                'required',
+                'exists:users,id',
+                Rule::notIn([$request->user()->id]),
+            ],
         ]);
 
-        $asset->update($validated);
+        $wasReturned = $assetInspection->approval_status === AssetInspection::APPROVAL_RETURNED;
+        $previousAdminId = (int) $assetInspection->admin_user;
+
+        // Editing a returned form resubmits it to the admin.
+        if ($wasReturned) {
+            $validated['approval_status'] = AssetInspection::APPROVAL_PENDING_ADMIN;
+            $validated['return_reason'] = null;
+        }
+
+        $assetInspection->update($validated);
+        $assetInspection->load(self::RELATIONS);
+
+        $adminChanged = (int) $assetInspection->admin_user !== $previousAdminId;
+
+        if ($wasReturned || $adminChanged) {
+            $assetInspection->adminUser->notify(new InspectionNeedsSignature($assetInspection));
+        }
 
         return response()->json([
             'status' => 'success',
             'message' => 'Asset inspection updated successfully',
-            'data'   => $asset->load(self::RELATIONS),
+            'data'   => $assetInspection,
         ]);
     }
 
-    public function deleteAssetInspectionById(Request $request): JsonResponse
+    // From Admin department: sign and complete.
+    public function signAsAdmin(Request $request, AssetInspection $assetInspection): JsonResponse
     {
-        $asset = AssetInspection::findOrFail($request->id);
-        $asset->delete();
+        $this->assertAssignedAdmin($request, $assetInspection);
+        $this->assertPendingAdmin($assetInspection);
+
+        $validated = $request->validate([
+            'admin_remarks' => ['nullable', 'string'],
+        ]);
+
+        $assetInspection->update([
+            ...$validated,
+            'admin_digital_signature' => true,
+            'admin_signed_at' => now(),
+            'approval_status' => AssetInspection::APPROVAL_COMPLETED,
+        ]);
+
+        $assetInspection->load(self::RELATIONS);
+        $assetInspection->preparedBy->notify(new InspectionCompleted($assetInspection));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Asset inspection signed successfully',
+            'data' => $assetInspection,
+        ]);
+    }
+
+    // From Admin department: send back to ICT with a reason.
+    public function returnToIt(Request $request, AssetInspection $assetInspection): JsonResponse
+    {
+        $this->assertAssignedAdmin($request, $assetInspection);
+        $this->assertPendingAdmin($assetInspection);
+
+        $validated = $request->validate([
+            'return_reason' => ['required', 'string', 'max:2000'],
+            'admin_remarks' => ['nullable', 'string'],
+        ]);
+
+        $assetInspection->update([
+            ...$validated,
+            'approval_status' => AssetInspection::APPROVAL_RETURNED,
+            'admin_digital_signature' => false,
+            'admin_signed_at' => null,
+        ]);
+
+        $assetInspection->load(self::RELATIONS);
+        $assetInspection->preparedBy->notify(new InspectionReturned($assetInspection));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Asset inspection returned to IT',
+            'data' => $assetInspection,
+        ]);
+    }
+
+    public function deleteAssetInspectionById(Request $request, AssetInspection $assetInspection): JsonResponse
+    {
+        abort_unless(
+            (int) $assetInspection->prepared_by === $request->user()->id,
+            403,
+            'Only the person who prepared this inspection can delete it.'
+        );
+        abort_if(
+            $assetInspection->isCompleted(),
+            409,
+            'A completed inspection cannot be deleted.'
+        );
+
+        $assetInspection->delete();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Asset inspection deleted successfully',
         ]);
+    }
+
+    private function assertAssignedAdmin(Request $request, AssetInspection $assetInspection): void
+    {
+        abort_unless(
+            (int) $assetInspection->admin_user === $request->user()->id,
+            403,
+            'You are not the assigned approver for this inspection.'
+        );
+    }
+
+    private function assertPendingAdmin(AssetInspection $assetInspection): void
+    {
+        abort_unless(
+            $assetInspection->approval_status === AssetInspection::APPROVAL_PENDING_ADMIN,
+            422,
+            'This inspection is not awaiting admin approval.'
+        );
     }
 }

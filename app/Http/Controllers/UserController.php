@@ -14,7 +14,7 @@ class UserController
     // get all Users
     public function getUsers(Request $request)
     {
-        $currentUsers = User::with('role')->get();
+        $currentUsers = User::with('role', 'department')->get();
         return response()->json(
             [
                 'status' => 'success',
@@ -32,7 +32,8 @@ class UserController
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:6',
             'designation' => 'required|string|max:255',
-            'role_id' => 'required|integer|exists:roles,id'
+            'role_id' => 'required|integer|exists:roles,id',
+            'department_id' => 'required|integer|exists:departments,id'
         ]);
 
         $newUser = User::create($validated);
@@ -86,7 +87,8 @@ class UserController
             'name' => 'string|max:255',
             'password' => 'string|min:6',
             'designation' => 'string|max:255',
-            'role_id' => 'integer|exists:roles,id'
+            'role_id' => 'integer|exists:roles,id',
+            'department_id' => 'integer|exists:departments,id'
         ]);
 
         $user->update($validated);

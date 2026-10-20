@@ -20,7 +20,8 @@ Route::get('/users/{id}', [UserController::class, 'getUserById']);
 Route::put('/users/{id}', [UserController::class, 'updateUserById']);
 Route::delete('/users/{id}', [UserController::class, 'deleteUserById']);
 
-Route::get('/roles', [RoleController::class, 'roles']);
+Route::get('/roles', [RoleController::class, 'getRoles']);
+Route::post('/roles', [RoleController::class, 'postRole']);
 
 Route::get('/permissions', [PermissionController::class, 'getPermissions']);
 Route::post('/permissions', [PermissionController::class, 'postPermissions']);
@@ -52,9 +53,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // --- asset inspections
     Route::get('/asset-inspections', [AssetInspectionController::class, 'getAssetInspections']);
     Route::post('/asset-inspections', [AssetInspectionController::class, 'postAssetInspections']);
-    Route::get('/asset-inspections/{id}', [AssetInspectionController::class, 'getAssetInspectionById']);
-    Route::put('/asset-inspections/{id}', [AssetInspectionController::class, 'updateAssetInspectionById']);
-    Route::delete('/asset-inspections/{id}', [AssetInspectionController::class, 'deleteAssetInspectionById']);
+    Route::get('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'getAssetInspectionById']);
+    Route::put('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'updateAssetInspectionById']);
+    Route::delete('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'deleteAssetInspectionById']);
+
+    Route::post('/asset-inspections/{assetInspection}/sign-admin', [AssetInspectionController::class, 'signAsAdmin']);
+    Route::post('/asset-inspections/{assetInspection}/return', [AssetInspectionController::class, 'returnToIt']);
 
 
     // --- departments

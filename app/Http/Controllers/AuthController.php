@@ -22,7 +22,7 @@ class AuthController
     {
         $throttleKey = strtolower($request->input('email')) . '|' . $request->ip();
         
-        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+        if (RateLimiter::tooManyAttempts($throttleKey, 105)) {
             return response()->json(['message' => 'Too many login attempts. Please try again later.'], 429);
         }
 
@@ -36,12 +36,14 @@ class AuthController
             ]);
         }
 
+        // =============================================================
         // 2. Email verification check
         // if (is_null($user->email_verified_at)) {
         //     RateLimiter::hit($throttleKey, 60);
         //     abort(403, 'Account is unverified.');
         // }
         // RateLimiter::clear($throttleKey);
+        // =============================================================
 
         // 3. Session and Auth login
         $request->session()->regenerate();
@@ -58,8 +60,8 @@ class AuthController
             'has_session' => $request->hasSession(),
             'session_id' => $request->session()->getId(),
             'auth_check' => Auth::check(),
-            'user_from_request' => $request->user()->load('role.permissions'),
-            'auth_user' => Auth::user()->load('role.permissions'),
+            'user_from_request' => $request->user()->load('role.permissions', 'department'),
+            'auth_user' => Auth::user()->load('role.permissions', 'department'),
         ]);
     }
 
