@@ -39,12 +39,17 @@ class ItemTypeSeeder extends Seeder
         ];
 
         $now = now();
+        $has_specification = false;
 
         foreach ($uniqueItems as $name) {
+            if ($uniqueItems == "Laptop" || $uniqueItems == "Mobile/Tablet" || $uniqueItems == "server") {
+                $has_specification = true;
+            } 
+
             DB::table('item_types')->updateOrInsert(
                 ['name' => $name],
                 [
-                    'has_specification' => false,
+                    'has_specification' => $has_specification,
                     'updated_at' => $now,
                     'created_at' => $now,
                 ]

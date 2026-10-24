@@ -16,28 +16,8 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
-        $roles = ['admin', 'manager', 'helpdesk_agent', 'department_user'];
-
-        foreach ($roles as $name){
+        foreach (['super_admin', 'ict_manager', 'ict_staff', 'admin_approver'] as $name) {
             Role::firstOrCreate(['name' => $name]);
         }
-
     }
 }
-
-/*
-    -> Permissions:
-    manage_departments
-    manage_item_types
-    manage_issue_types
-    manage_users
-    manage_support_logs
-
-
-    -> Roles
-    Admin
-    Manager
-    helpdesk_agent
-
-    -> RolePermissions
-*/
