@@ -9,6 +9,7 @@ use App\Notifications\InspectionReturned;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class AssetInspectionController
 {
@@ -51,6 +52,7 @@ class AssetInspectionController
     // From ICT department
     public function postAssetInspections(Request $request): JsonResponse
     {
+        logger("am i reaching here");
         $validated = $request->validate([
             'username' => ['required', 'string', 'max:255'],
             'designation' => ['nullable', 'string', 'max:255'],
@@ -84,6 +86,8 @@ class AssetInspectionController
             // Must be true: the ICT person confirms the user acknowledged the form.
             'user_digital_signature' => ['accepted'],
         ]);
+
+        logger("This is what is validated: ", $validated);
 
         $asset = AssetInspection::create([
             ...$validated,
