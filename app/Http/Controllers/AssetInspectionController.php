@@ -9,6 +9,7 @@ use App\Notifications\InspectionReturned;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class AssetInspectionController
 {
@@ -28,18 +29,20 @@ class AssetInspectionController
 
     public function getAssetInspections(Request $request): JsonResponse
     {
-        $assets = AssetInspection::with(self::RELATIONS)
-            ->latest()
-            ->get();
+        $query = AssetInspection::with(self::RELATIONS)->latest();
 
-        return response()->json([
-            'status' => 'success',
-            'data'   => $assets,
-        ]);
+        if (! $this->seesAll($request)) {
+            $id = $request->user()->id;
+            $query->where(fn ($q) => $q->where('prepared_by', $id)->orWhere('admin_user', $id));
+        }
+
+        return response()->json(['status' => 'success', 'data' => $query->get()]);
     }
 
-    public function getAssetInspectionById(AssetInspection $assetInspection): JsonResponse
+    public function getAssetInspectionById(Request $request, AssetInspection $assetInspection): JsonResponse
     {
+        $this->assertCanView($request, $assetInspection);
+
         return response()->json([
             'status' => 'success',
             'data'   => $assetInspection->load(self::RELATIONS),
@@ -49,6 +52,7 @@ class AssetInspectionController
     // From ICT department
     public function postAssetInspections(Request $request): JsonResponse
     {
+        logger("am i reaching here");
         $validated = $request->validate([
             'username' => ['required', 'string', 'max:255'],
             'designation' => ['nullable', 'string', 'max:255'],
@@ -73,13 +77,17 @@ class AssetInspectionController
             // The approver the ICT person assigns. Cannot be the creator.
             'admin_user' => [
                 'required',
-                'exists:users,id',
+                Rule::exists('users', 'id')->where(
+                    fn ($q) => $q->whereIn('department_id', DB::table('departments')->where('code', 'admin-log')->pluck('id'))
+                ),
                 Rule::notIn([$request->user()->id]),
             ],
 
             // Must be true: the ICT person confirms the user acknowledged the form.
             'user_digital_signature' => ['accepted'],
         ]);
+
+        logger("This is what is validated: ", $validated);
 
         $asset = AssetInspection::create([
             ...$validated,
@@ -140,7 +148,9 @@ class AssetInspectionController
             'admin_user' => [
                 'sometimes',
                 'required',
-                'exists:users,id',
+                Rule::exists('users', 'id')->where(
+                    fn ($q) => $q->whereIn('department_id', DB::table('departments')->where('code', 'admin-log')->pluck('id'))
+                ),
                 Rule::notIn([$request->user()->id]),
             ],
         ]);
@@ -261,6 +271,21 @@ class AssetInspectionController
             $assetInspection->approval_status === AssetInspection::APPROVAL_PENDING_ADMIN,
             422,
             'This inspection is not awaiting admin approval.'
+        );
+    }
+
+    private function seesAll(Request $request): bool
+    {
+        return in_array($request->user()->role?->name, ['super_admin', 'ict_manager'], true);
+    }
+
+    private function assertCanView(Request $request, AssetInspection $a): void
+    {
+        $id = $request->user()->id;
+        abort_unless(
+            $this->seesAll($request) || (int) $a->prepared_by === $id || (int) $a->admin_user === $id,
+            403,
+            'You cannot view this inspection.'
         );
     }
 }

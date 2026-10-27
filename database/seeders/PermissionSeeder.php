@@ -17,40 +17,27 @@ class PermissionSeeder extends Seeder
     public function run(): void
     {
         $names = [
-            'manage_users',
-            'manage_roles',
+            'manage_dashboard',
+            'dashboard_support_logs',
+            'dashboard_asset_inspections',
             'user_performance',
-            
+            'dashboard_department_view',
+            'dashboard_all_view',
+
+            'manage_support_logs',
+            'manage_asset_inspections',
+            'create_asset_inspections',
+
             'manage_departments',
             'manage_item_types',
             'manage_issue_types',
-            
-            'create_support_logs',
+
+            'manage_users',             // super admin only
+            'manage_role_permissions',  // super admin only
         ];
 
         foreach ($names as $name) {
             Permission::firstOrCreate(['name' => $name]);
         }
-
-        $all = Permission::pluck('id');
-        $starter = Permission::whereIn('name', ['create_support_logs', 'update_own_support_logs'])->pluck('id');
-
-
-        Role::where('name', 'admin')->first()?->permissions()->sync($all);
-        Role::where('name', 'network_administrator')->first()?->permissions()->sync($starter);
-        Role::where('name', 'software_developer')->first()?->permissions()->sync($starter);
     }
 }
-
-/*
-======= Permissions to seed =======
-
-manage_user
-user_performance
-manage_role
-manage_departments
-manage_item_type
-manage_issue_type
-create_support_logs
-
-*/

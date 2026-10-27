@@ -136,4 +136,13 @@ class UserController
             ], 500);
         }
     }
+
+    public function getApprovers(Request $request)
+    {
+        $users = \App\Models\User::whereHas('department', fn ($q) => $q->where('code', 'admin-log'))
+            ->where('id', '!=', $request->user()->id)
+            ->get(['id', 'name', 'designation']);
+
+        return response()->json(['status' => 'success', 'data' => $users]);
+    }
 }

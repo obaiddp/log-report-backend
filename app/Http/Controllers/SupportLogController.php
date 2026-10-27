@@ -25,9 +25,6 @@ class SupportLogController
             ->latest()
             ->get();
 
-        logger("am i gettign supportLogs");    
-        logger($supportLogs);
-
         return response()->json([
             'status' => 'success',
             'data'   => $supportLogs,
@@ -36,9 +33,6 @@ class SupportLogController
 
     public function postSupportLogs(Request $request): JsonResponse
     {
-        logger("am i getting request");
-        logger($request->all());
-
         $validated = $request->validate([
             'issue_date'       => ['required', 'date'],
             'initiated_by'     => ['required', 'string', 'max:255'],
@@ -46,7 +40,7 @@ class SupportLogController
             'item_type_id'     => ['required', 'exists:item_types,id'],
             'issue_type_ids'   => ['nullable', 'array'],
             'issue_type_ids.*' => ['integer', 'exists:issue_types,id'],
-            'status'           => ['nullable', Rule::in(['indoor_repairing', 'outdoor_repairing', 'solved'])],
+            'status'           => ['nullable', Rule::in(['in_progress', 'indoor_repairing', 'outdoor_repairing', 'resolved', 'closed'])],
             'issue_details'    => ['nullable', 'string'],
             'assigned_to'      => ['nullable', 'exists:users,id'],
         ]);
@@ -119,11 +113,7 @@ class SupportLogController
         $validated = $request->validate([ 
             'status' => [ 
                 'required', 
-                Rule::in([ 
-                    'indoor_repairing', 
-                    'outdoor_repairing', 
-                    'solved', 
-                ]), 
+                Rule::in(['in_progress', 'indoor_repairing', 'outdoor_repairing', 'resolved', 'closed']), 
             ], 
         ]); 
 

@@ -13,23 +13,6 @@ use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AssetInspectionController;
 
-// --- RBAC
-Route::get('/users', [UserController::class, 'getUsers']);
-Route::post('/users', [UserController::class, 'postUsers']);
-Route::get('/users/{id}', [UserController::class, 'getUserById']);
-Route::put('/users/{id}', [UserController::class, 'updateUserById']);
-Route::delete('/users/{id}', [UserController::class, 'deleteUserById']);
-
-Route::get('/roles', [RoleController::class, 'getRoles']);
-Route::post('/roles', [RoleController::class, 'postRole']);
-
-Route::get('/permissions', [PermissionController::class, 'getPermissions']);
-Route::post('/permissions', [PermissionController::class, 'postPermissions']);
-Route::delete('/permissions/{id}', [PermissionController::class, 'deletePermissions']);
-
-Route::get('/roles/{role_id}/permissions', [RolePermissionController::class, 'getRolePermissions']);
-Route::put('/roles/{role_id}/permissions', [RolePermissionController::class, 'updateRolePermissions']);
-
 Route::middleware('web')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login']);
 });
@@ -39,27 +22,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
 
-    Route::middleware('permission:user_performance')->group(function () {
-        Route::get('/dashboard/user-performance', [DashboardController::class, 'userPerformance']);
+    // --- RBAC
+    Route::middleware('permission:manage_users')->group(function () {
+        Route::get('/users', [UserController::class, 'getUsers']);
+        Route::post('/users', [UserController::class, 'postUsers']);
+        Route::get('/users/{id}', [UserController::class, 'getUserById']);
+        Route::put('/users/{id}', [UserController::class, 'updateUserById']);
+        Route::delete('/users/{id}', [UserController::class, 'deleteUserById']);
     });
 
-    // --- log reports
-    Route::get('/support-logs', [SupportLogController::class, 'getSupportLogs']);
-    Route::post('/support-logs', [SupportLogController::class, 'postSupportLogs']);
-    Route::get('/support-logs/{id}', [SupportLogController::class, 'getSupportLogById']);
-    Route::put('/support-logs/{id}', [SupportLogController::class, 'updateSupportLogById']);
-    Route::delete('/support-logs/{id}', [SupportLogController::class, 'deleteSupportLogById']);
+    Route::middleware('permission:manage_role_permissions')->group(function () {
+        Route::get('/roles', [RoleController::class, 'getRoles']);
+        Route::post('/roles', [RoleController::class, 'postRole']);
+        Route::get('/permissions', [PermissionController::class, 'getPermissions']);
+        Route::post('/permissions', [PermissionController::class, 'postPermissions']);
+        Route::delete('/permissions/{id}', [PermissionController::class, 'deletePermissions']);
+        Route::get('/roles/{role_id}/permissions', [RolePermissionController::class, 'getRolePermissions']);
+        Route::put('/roles/{role_id}/permissions', [RolePermissionController::class, 'updateRolePermissions']);
+    });
 
-    // --- asset inspections
-    Route::get('/asset-inspections', [AssetInspectionController::class, 'getAssetInspections']);
-    Route::post('/asset-inspections', [AssetInspectionController::class, 'postAssetInspections']);
-    Route::get('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'getAssetInspectionById']);
-    Route::put('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'updateAssetInspectionById']);
-    Route::delete('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'deleteAssetInspectionById']);
-
-    Route::post('/asset-inspections/{assetInspection}/sign-admin', [AssetInspectionController::class, 'signAsAdmin']);
-    Route::post('/asset-inspections/{assetInspection}/return', [AssetInspectionController::class, 'returnToIt']);
-
+    // ====================================================================================
+    // ====================================================================================
 
     // --- departments
     Route::get('/departments', [DepartmentController::class, 'getDepartments']);
@@ -89,6 +72,49 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/issues/{id}', [IssueController::class, 'deleteIssueById']);
     });
 
+    // ====================================================================================
+    // ====================================================================================
 
+    // --- log reports
+    Route::middleware('permission:manage_support_logs')->group(function () {
+        Route::get('/support-logs', [SupportLogController::class, 'getSupportLogs']);
+        Route::post('/support-logs', [SupportLogController::class, 'postSupportLogs']);
+        Route::get('/support-logs/{id}', [SupportLogController::class, 'getSupportLogById']);
+        Route::put('/support-logs/{id}', [SupportLogController::class, 'updateSupportLogById']);
+        Route::delete('/support-logs/{id}', [SupportLogController::class, 'deleteSupportLogById']);
+    });
+
+    // --- asset inspections
+    Route::middleware('permission:manage_asset_inspections')->group(function () {
+        Route::get('/asset-inspections', [AssetInspectionController::class, 'getAssetInspections']);
+        Route::get('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'getAssetInspectionById']);
+        Route::post('/asset-inspections/{assetInspection}/sign-admin', [AssetInspectionController::class, 'signAsAdmin']);
+        Route::post('/asset-inspections/{assetInspection}/return', [AssetInspectionController::class, 'returnToIt']);
+    });
+
+    Route::middleware('permission:create_asset_inspections')->group(function () {
+        Route::post('/asset-inspections', [AssetInspectionController::class, 'postAssetInspections']);
+        Route::put('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'updateAssetInspectionById']);
+        Route::delete('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'deleteAssetInspectionById']);
+    });
+
+    // ====================================================================================
+    // --- approver picker for the inspection form (ICT)
+    Route::get('/approvers', [UserController::class, 'getApprovers'])->middleware('permission:create_asset_inspections');
+
+    // --- dashboard
+    Route::get('/dashboard/support-logs', [DashboardController::class, 'supportLogs'])
+        ->middleware('permission:dashboard_support_logs');
+
+    Route::get('/dashboard/asset-inspections', [DashboardController::class, 'assetInspections'])
+        ->middleware('permission:dashboard_asset_inspections');
+
+    Route::get('/dashboard/user-performance', [DashboardController::class, 'userPerformance'])
+        ->middleware('permission:user_performance');
+
+    Route::get('/dashboard/filter-options', [DashboardController::class, 'filterOptions'])
+    ->middleware('permission:manage_dashboard');
+
+    // other dashboard endpoints: add dashboard_support_logs / dashboard_asset_inspections here once I see DashboardController
 
 });

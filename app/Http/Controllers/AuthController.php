@@ -18,6 +18,11 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController
 {
+    public function __construct()
+    {
+        logger("Am i reachhing here in logout function in auth controller");
+    }
+
     public function login(Request $request)
     {
         $throttleKey = strtolower($request->input('email')) . '|' . $request->ip();
@@ -49,24 +54,34 @@ class AuthController
         $request->session()->regenerate();
         Auth::login($user, $request->boolean('remember'));
 
+        $user->load('role.permissions', 'department');
         return response()->json([
-            'data' => $user->load('role.permissions'),
+            'data' => $user,
+            'role' => $user->role?->name,
+            'permissions' => $user->role?->permissions->pluck('name')->values() ?? [],
         ]);
     }
 
     public function me(Request $request)
     {
+        logger('am i getting to me in cotnroller');
+        $user = $request->user()->load('role.permissions', 'department');
+
         return response()->json([
             'has_session' => $request->hasSession(),
             'session_id' => $request->session()->getId(),
             'auth_check' => Auth::check(),
-            'user_from_request' => $request->user()->load('role.permissions', 'department'),
-            'auth_user' => Auth::user()->load('role.permissions', 'department'),
+            'user_from_request' => $user,
+            'auth_user' => $user,
+            'role' => $user->role?->name,
+            'permissions' => $user->role?->permissions->pluck('name')->values() ?? [],
         ]);
     }
 
     public function logout(Request $request)
     {
+        logger("===========here in logout function in auth controller");
+        
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
