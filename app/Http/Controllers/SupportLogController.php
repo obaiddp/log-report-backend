@@ -25,9 +25,6 @@ class SupportLogController
             ->latest()
             ->get();
 
-        logger("am i gettign supportLogs");    
-        logger($supportLogs);
-
         return response()->json([
             'status' => 'success',
             'data'   => $supportLogs,
