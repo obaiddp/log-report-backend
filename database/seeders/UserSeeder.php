@@ -49,7 +49,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Muhammad Afaq',
                 'email' => 'afaq@cef.org.pk',
-                'role_id' => $managerId,
+                'role_id' => $staffId,
                 'department_id' => $ictDepartmentId,
                 'designation' => 'Assistant IT Officer',
                 'password' => $resourcePassword,

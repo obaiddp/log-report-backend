@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SupportLog;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -143,6 +144,19 @@ class SupportLogController
         return response()->json([
             'status' => 'success',
             'data'   => $supportLog,
+        ]);
+    }
+
+    // ---------- get ict support log assignees
+    public function getAssignees(Request $request): JsonResponse 
+    {
+        $assignees = User::whereHas('department', fn ($q) => $q->where('code', 'ict'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $assignees
         ]);
     }
 }

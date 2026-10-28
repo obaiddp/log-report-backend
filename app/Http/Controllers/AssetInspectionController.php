@@ -288,4 +288,17 @@ class AssetInspectionController
             'You cannot view this inspection.'
         );
     }
+
+    // ---------- get admin asset inspecgtion assignees
+    public function getAssignees(Request $request): JsonResponse 
+    {
+        $assignees = User::whereHas('department', fn ($q) => $q->where('code', 'admin'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $assignees
+        ]);
+    }
 }

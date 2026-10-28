@@ -77,6 +77,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // --- log reports
     Route::middleware('permission:manage_support_logs')->group(function () {
+        Route::get('/support-log-assignees', [SupportLogController::class, 'getAssignees']);
+
         Route::get('/support-logs', [SupportLogController::class, 'getSupportLogs']);
         Route::post('/support-logs', [SupportLogController::class, 'postSupportLogs']);
         Route::get('/support-logs/{id}', [SupportLogController::class, 'getSupportLogById']);
@@ -86,6 +88,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // --- asset inspections
     Route::middleware('permission:manage_asset_inspections')->group(function () {
+        Route::get('/asset-inspections-assignees', [AssetInspectionController::class, 'getAssignees']);
+
         Route::get('/asset-inspections', [AssetInspectionController::class, 'getAssetInspections']);
         Route::get('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'getAssetInspectionById']);
         Route::post('/asset-inspections/{assetInspection}/sign-admin', [AssetInspectionController::class, 'signAsAdmin']);
@@ -93,14 +97,14 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::middleware('permission:create_asset_inspections')->group(function () {
+        Route::get('/approvers', [UserController::class, 'getApprovers']);
+
         Route::post('/asset-inspections', [AssetInspectionController::class, 'postAssetInspections']);
         Route::put('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'updateAssetInspectionById']);
         Route::delete('/asset-inspections/{assetInspection}', [AssetInspectionController::class, 'deleteAssetInspectionById']);
     });
 
-    // ====================================================================================
-    // --- approver picker for the inspection form (ICT)
-    Route::get('/approvers', [UserController::class, 'getApprovers'])->middleware('permission:create_asset_inspections');
+    // ==================================================================================
 
     // --- dashboard
     Route::get('/dashboard/support-logs', [DashboardController::class, 'supportLogs'])
