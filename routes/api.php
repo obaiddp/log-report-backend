@@ -12,6 +12,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AssetInspectionController;
+use App\Http\Controllers\PushSubscriptionController;
 
 Route::middleware('web')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login']);
@@ -121,4 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // other dashboard endpoints: add dashboard_support_logs / dashboard_asset_inspections here once I see DashboardController
 
+    // --- notification
+    Route::post('/push/subscribe', [PushSubscriptionController::class, 'subscribe']);
+    Route::post('/push/unsubscribe', [PushSubscriptionController::class, 'unsubscribe']);
 });
