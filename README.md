@@ -6,26 +6,162 @@ Laravel JSON APIs for the
 - Asset/Item Inspection form (form for ICT department and then pdf for admin department)
 - It uses Laravel Sanctum cookie (SPA) authentication
 - permission-based role access control (RBAC).
+- long polling used for asset inspection
 
 ## Database overview
 
 Three areas: access control (roles and permissions), IT support logs, and asset inspections.
 
-```mermaid
 erDiagram
-  ROLES ||--o{ USERS : has
-  ROLES ||--o{ ROLE_PERMISSION : grants
-  PERMISSIONS ||--o{ ROLE_PERMISSION : included_in
-  USERS ||--o{ SUPPORT_LOGS : creates
-  USERS |o--o{ SUPPORT_LOGS : assigned_to
-  USERS ||--o{ ASSET_INSPECTIONS : prepares
-  DEPARTMENTS ||--o{ SUPPORT_LOGS : raises
-  DEPARTMENTS ||--o{ ASSET_INSPECTIONS : belongs_to
-  ITEM_TYPES ||--o{ SUPPORT_LOGS : concerns
-  ITEM_TYPES ||--o{ ASSET_INSPECTIONS : inspected_as
-  SUPPORT_LOGS ||--o{ SUPPORT_LOG_ISSUE_TYPE : tagged
-  ISSUE_TYPES ||--o{ SUPPORT_LOG_ISSUE_TYPE : classifies
-```
+    ROLES ||--o{ USERS : assigns
+    ROLES ||--o{ ROLE_PERMISSIONS : grants
+    PERMISSIONS ||--o{ ROLE_PERMISSIONS : contains
+
+    DEPARTMENTS o|--o{ USERS : employs
+    DEPARTMENTS ||--o{ SUPPORT_LOGS : categorizes
+    DEPARTMENTS ||--o{ ASSET_INSPECTIONS : categorizes
+
+    ITEM_TYPES ||--o{ SUPPORT_LOGS : concerns
+    ITEM_TYPES ||--o{ ASSET_INSPECTIONS : identifies
+
+    USERS ||--o{ SUPPORT_LOGS : creates
+    USERS o|--o{ SUPPORT_LOGS : currently_assigned_to
+
+    SUPPORT_LOGS ||--o{ SUPPORT_LOG_ASSIGNMENTS : assignment_history
+    USERS ||--o{ SUPPORT_LOG_ASSIGNMENTS : assigned_to
+    USERS ||--o{ SUPPORT_LOG_ASSIGNMENTS : assigned_by
+
+    SUPPORT_LOGS ||--o{ SUPPORT_LOG_ISSUE_TYPES : classified_by
+    ISSUE_TYPES ||--o{ SUPPORT_LOG_ISSUE_TYPES : categorizes
+
+    USERS ||--o{ ASSET_INSPECTIONS : prepares
+    USERS ||--o{ ASSET_INSPECTIONS : approves
+
+    ROLES {
+        bigint id PK
+        varchar name UK
+    }
+
+    PERMISSIONS {
+        bigint id PK
+        varchar name UK
+    }
+
+    ROLE_PERMISSIONS {
+        bigint id PK
+        bigint role_id FK
+        bigint permission_id FK
+    }
+
+    USERS {
+        bigint id PK
+        varchar name
+        varchar email UK
+        varchar password
+        bigint role_id FK
+        bigint department_id FK
+        varchar designation
+        timestamp email_verified_at
+    }
+
+    DEPARTMENTS {
+        bigint id PK
+        varchar name
+        varchar code UK
+    }
+
+    ITEM_TYPES {
+        bigint id PK
+        varchar name
+        varchar has_specification
+    }
+
+    ISSUE_TYPES {
+        bigint id PK
+        varchar name
+    }
+
+    SUPPORT_LOGS {
+        bigint id PK
+        varchar ticket_number UK
+        date issue_date
+        varchar initiated_by
+        bigint department_id FK
+        bigint item_type_id FK
+        varchar status
+        text issue_details
+        bigint assigned_to FK
+        bigint created_by FK
+        timestamp resolved_at
+        timestamp closed_at
+    }
+
+    SUPPORT_LOG_ASSIGNMENTS {
+        bigint id PK
+        bigint support_log_id FK
+        bigint assigned_to FK
+        bigint assigned_by FK
+        timestamp assigned_at
+        timestamp unassigned_at
+    }
+
+    SUPPORT_LOG_ISSUE_TYPES {
+        bigint id PK
+        bigint support_log_id FK
+        bigint issue_type_id FK
+    }
+
+    ASSET_INSPECTIONS {
+        bigint id PK
+        varchar username
+        varchar designation
+        varchar email
+        varchar cell
+        bigint department_id FK
+        varchar territory
+        bigint item_type_id FK
+        varchar model
+        varchar brand
+        varchar serial_number
+        varchar item_tag
+        varchar ram
+        varchar generation
+        varchar hard_drive
+        varchar status
+        text item_problem
+        text it_remarks
+        text admin_remarks
+        varchar approval_status
+        bigint prepared_by FK
+        bigint admin_user FK
+        boolean prepared_by_digital_signature
+        boolean user_digital_signature
+        boolean admin_digital_signature
+        timestamp prepared_signed_at
+        timestamp user_signed_at
+        timestamp admin_signed_at
+        text return_reason
+    }
+
+    NOTIFICATIONS {
+        uuid id PK
+        varchar type
+        varchar notifiable_type
+        bigint notifiable_id
+        text data
+        timestamp read_at
+    }
+
+    PUSH_SUBSCRIPTIONS {
+        bigint id PK
+        varchar subscribable_type
+        bigint subscribable_id
+        varchar endpoint UK
+        varchar public_key
+        varchar auth_token
+        varchar content_encoding
+    }
+
 ## -----------------------------------
 
 ## -----------------------------------
