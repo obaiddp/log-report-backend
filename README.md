@@ -12,6 +12,7 @@ Laravel JSON APIs for the
 
 Three areas: access control (roles and permissions), IT support logs, and asset inspections.
 
+```mermaid
 erDiagram
     ROLES ||--o{ USERS : assigns
     ROLES ||--o{ ROLE_PERMISSIONS : grants
@@ -161,6 +162,7 @@ erDiagram
         varchar auth_token
         varchar content_encoding
     }
+```
 
 ## -----------------------------------
 
