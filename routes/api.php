@@ -13,6 +13,7 @@ use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AssetInspectionController;
 use App\Http\Controllers\PushSubscriptionController;
+use App\Http\Controllers\LocationController;
 
 Route::middleware('web')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login']);
@@ -50,8 +51,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:manage_departments')->group(function () {
         Route::post('/departments', [DepartmentController::class, 'postDepartments']);
         Route::get('/departments/{id}', [DepartmentController::class, 'getDepartmentById']);
-        Route::put('/departments/{id}', [DepartmentController::class, 'updateDepartmentById']); 
+        Route::put('/departments/{id}', [DepartmentController::class, 'updateDepartmentById']);
         Route::delete('/departments/{id}', [DepartmentController::class, 'deleteDepartmentById']);
+    });
+
+    // --- locations
+    Route::get('/locations', [LocationController::class, 'getLocations']);
+    Route::middleware('permission:manage_locations')->group(function () {
+        Route::post('/locations', [LocationController::class, 'postLocations']);
+        Route::get('/locations/{id}', [LocationController::class, 'getLocationById']);
+        Route::put('/locations/{id}', [LocationController::class, 'updateLocationById']);
+        Route::delete('/locations/{id}', [LocationController::class, 'deleteLocationById']);
     });
 
     // --- items
@@ -59,9 +69,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:manage_item_types')->group(function () {
         Route::post('/items', [ItemController::class, 'postItems']);
         Route::get('/items/{id}', [ItemController::class, 'getItemById']);
-        Route::put('/items/{id}', [ItemController::class, 'updateItemById']); 
+        Route::put('/items/{id}', [ItemController::class, 'updateItemById']);
         Route::delete('/items/{id}', [ItemController::class, 'deleteItemById']);
-    
+
     });
 
     // --- issues
@@ -69,7 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:manage_issue_types')->group(function () {
         Route::post('/issues', [IssueController::class, 'postIssues']);
         Route::get('/issues/{id}', [IssueController::class, 'getIssueById']);
-        Route::put('/issues/{id}', [IssueController::class, 'updateIssueById']); 
+        Route::put('/issues/{id}', [IssueController::class, 'updateIssueById']);
         Route::delete('/issues/{id}', [IssueController::class, 'deleteIssueById']);
     });
 

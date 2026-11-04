@@ -29,8 +29,10 @@ class PermissionSeeder extends Seeder
             'create_asset_inspections',
 
             'manage_departments',
+            'manage_locations',
             'manage_item_types',
             'manage_issue_types',
+            
 
             'manage_users',             // super admin only
             'manage_role_permissions',  // super admin only

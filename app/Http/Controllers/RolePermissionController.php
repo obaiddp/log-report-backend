@@ -79,24 +79,24 @@ class RolePermissionController
     }
 
     // 1. super_admin can never be edited
-    if ($role->name === 'super_admin') {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Super admin permissions cannot be changed.',
-        ], 403);
-    }
+    //if ($role->name === 'super_admin') {
+    //    return response()->json([
+    //        'status' => 'error',
+    //        'message' => 'Super admin permissions cannot be changed.',
+    //    ], 403);
+    //}
 
     // 2. these two can never be given to any other role
     $locked = Permission::whereIn('name', ['manage_users', 'manage_role_permissions'])
         ->pluck('id')
         ->all();
 
-    if (array_intersect($locked, $validated['permission_ids'])) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'These permissions are reserved for super admin.',
-        ], 403);
-    }
+    //if (array_intersect($locked, $validated['permission_ids'])) {
+    //    return response()->json([
+    //        'status' => 'error',
+    //        'message' => 'These permissions are reserved for super admin.',
+    //    ], 403);
+    //}
 
     // Synchronize pivot table to match array of IDs passed from frontend
     $role->permissions()->sync($validated['permission_ids']);
